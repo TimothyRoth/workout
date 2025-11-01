@@ -1,6 +1,6 @@
 <div class="wrapper">
     <div class="singleSessionView">
-        <h1><?= $params[0]['name'] ?></h1>
+        <h3><?= $params[0]['name'] ?></h3>
     </div>
     <a href="/">Zurück</a>
 </div>
