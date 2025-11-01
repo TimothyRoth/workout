@@ -2,3 +2,27 @@ body {
     margin: 0;
     padding: 0;
 }
+
+.wrapper {
+    padding: 0 20px;
+    position: relative;
+    margin: 0 auto;
+}
+
+.trainingSessions {
+    display: flex;
+    flex-direction: column;
+}
+
+.trainingSession {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    p {
+        margin: 0;
+    }
+}
+
+.createSession {
+    margin: 20px 0;
+}
