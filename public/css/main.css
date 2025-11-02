@@ -26,11 +26,11 @@ main {
 }
 
 input:not(input[type="submit"], input[type="image"]) {
-    width: calc(100% - 25px);
+    width: 100%;
 }
 
 .edit-container input:not(input[type="submit"], input[type="image"]) {
-    width: calc(100% - 70px);
+    width: 100%;
 }
 
 input:not(input[type="submit"], input[type="image"]) {
@@ -71,8 +71,8 @@ input:not(input[type="submit"], input[type="image"]) {
     width: calc(100% - 40px);
     img {
         position: absolute;
-        right: 30px;
-        top: -30px;
+        right: 20px;
+        top: -35px;
     }
 }
 
@@ -133,7 +133,7 @@ input:not(input[type="submit"], input[type="image"]) {
 
 .button {
     padding: 10px 20px;
-    width: calc(100% - 44px)
+    width: 100%;
 }
 
 .set {
