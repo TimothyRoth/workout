@@ -15,6 +15,7 @@
                     </a>
                     <div class="editButton" data-target="edit-workout-<?= $workout['id'] ?>">Bearbeiten</div>
                     <div class="edit-container" id="edit-workout-<?= $workout['id'] ?>">
+                        <div class="close">Schließen</div>
                         <form method="POST" action="/deleteWorkout">
                             <input type="hidden" name="workout_id" value="<?= $workout['id'] ?>">
                             <input type="submit" value="Workout entfernen">
