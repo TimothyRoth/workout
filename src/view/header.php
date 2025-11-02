@@ -10,5 +10,3 @@
 <body>
 <main>
 
-</main>
-
