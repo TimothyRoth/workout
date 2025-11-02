@@ -1,39 +1,55 @@
 body {
     margin: 0;
     padding: 0;
+    font-family: "Fira Sans";
+}
+
+main {
+    padding-bottom: 20px;
 }
 
 .wrapper {
     padding: 0 20px;
     position: relative;
     margin: 0 auto;
-}
-
-.workouts, .exercises {
-    display: flex;
-    flex-direction: column;
+    max-width: 700px;
 }
 
 .workout, .exercise .top {
     display: flex;
     gap: 10px;
     align-items: center;
+
     p {
         margin: 0;
     }
 }
 
-.addButton {
-    margin: 20px 0;
+input:not(input[type="submit"], input[type="image"]) {
+    width: calc(100% - 25px);
 }
 
-.backButton {
-    display: inline-block;
-    margin-top: 20px;
+.edit-container input:not(input[type="submit"], input[type="image"]) {
+    width: calc(100% - 70px);
+}
+
+input:not(input[type="submit"], input[type="image"]) {
+    padding: 5px 0;
+    border: none;
+}
+
+.addButton {
+    /**/
+}
+
+.backButton img {
+    position: relative;
+    top: 2px;
 }
 
 .edit-container {
     opacity: 0;
+    padding-top: 50px;
     z-index: -1;
     position: fixed;
     top: 0;
@@ -41,8 +57,147 @@ body {
     width: 100vw;
     height: 100vh;
     background: #fff;
+    transition: .3s ease-in-out;
+
     &.active {
+        transition: .3s ease-in-out;
         opacity: 1;
         z-index: 10;
     }
 }
+
+.close {
+    cursor: pointer;
+    width: calc(100% - 40px);
+    img {
+        position: absolute;
+        right: 30px;
+        top: -30px;
+    }
+}
+
+.icon {
+    width: 20px;
+    height: 20px;
+}
+
+.flex {
+    display: flex;
+}
+
+.column {
+    flex-direction: column;
+}
+
+.align-center {
+    align-items: center;
+}
+
+.justify-center {
+    justify-content: center;
+}
+
+.gap-s {
+    gap: 10px;
+}
+
+.gap-m {
+    gap: 20px;
+}
+
+.gap-l {
+    gap: 30px;
+}
+
+.gap-xl {
+    gap: 40px;
+}
+
+.no-margin {
+    margin: 0;
+}
+
+.saveButton {
+    opacity: 0;
+    max-height: 0;
+    transition: .3s ease-in-out;
+    padding: 0 !important;
+
+    &.active {
+        padding: 10px 20px !important;
+        opacity: 1;
+        max-height: 50px;
+        transition: .3s ease-in-out;
+    }
+}
+
+.button {
+    padding: 10px 20px;
+    width: calc(100% - 44px)
+}
+
+.set {
+    overflow-x: auto;
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+
+        th,
+        td {
+            width: 20%;
+            border: 1px solid #ccc;
+            padding: 8px 12px;
+        }
+
+        th {
+            text-align: left;
+            background-color: #f2f2f2;
+        }
+    }
+}
+
+
+.workouts {
+    .workout {
+        display: flex;
+        justify-content: space-between;
+
+        &:not(&:last-child) {
+            border-bottom: 1px solid black;
+            padding-bottom: 20px;
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+    }
+}
+
+.addWorkout {
+    margin-bottom: 20px;
+}
+
+.relative {
+    position: relative;
+}
+
+.bottom-s {
+    bottom: 10px;
+}
+
+.bottom-m {
+    bottom: 20px;
+}
+
+.bottom-l {
+    bottom: 30px;
+}
+
+.bottom-xl {
+    bottom: 40px;
+}
+
+
