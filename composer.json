@@ -1,6 +1,6 @@
 {
   "name": "timothyroth/workout-tracker",
-  "description": "A lightweight PHP + SQLite workout tracker with sessions and exercises.",
+  "description": "A lightweight PHP + SQLite workout tracker with workouts and exercises.",
   "type": "project",
   "require": {
     "php": ">=8.1",

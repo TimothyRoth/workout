@@ -9,12 +9,12 @@ body {
     margin: 0 auto;
 }
 
-.trainingSessions {
+.workouts, .exercises {
     display: flex;
     flex-direction: column;
 }
 
-.trainingSession {
+.workout, .exercise .top {
     display: flex;
     gap: 10px;
     align-items: center;
@@ -23,6 +23,26 @@ body {
     }
 }
 
-.createSession {
+.addButton {
     margin: 20px 0;
+}
+
+.backButton {
+    display: inline-block;
+    margin-top: 20px;
+}
+
+.edit-container {
+    opacity: 0;
+    z-index: -1;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #fff;
+    &.active {
+        opacity: 1;
+        z-index: 10;
+    }
 }

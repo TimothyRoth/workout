@@ -34,7 +34,7 @@ class Database
         $db = self::$connection;
 
         $db->exec("
-            CREATE TABLE IF NOT EXISTS sessions (
+            CREATE TABLE IF NOT EXISTS workouts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -45,11 +45,11 @@ class Database
         $db->exec("
             CREATE TABLE IF NOT EXISTS exercises (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id INTEGER NOT NULL,
+                workout_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+                FOREIGN KEY(workout_id) REFERENCES workouts(id) ON DELETE CASCADE
             );
         ");
 
@@ -57,10 +57,9 @@ class Database
             CREATE TABLE IF NOT EXISTS sets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 exercise_id INTEGER NOT NULL,
-                name TEXT NOT NULL,
                 measure_unit TEXT NOT NULL,
                 repetitions INTEGER,
-                rest_time INTEGER,
+                rest_time TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
@@ -68,39 +67,154 @@ class Database
         ");
     }
 
-    public static function getSessions(): array {
+    public static function getWorkouts(): array
+    {
         $db = self::$connection;
-        $stmt = $db->prepare("SELECT name, id FROM sessions");
+        $stmt = $db->prepare("SELECT name, id FROM workouts");
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public static function getSession($id): array {
+    public static function getExercises(int $workoutId): array
+    {
         $db = self::$connection;
-        $stmt = $db->prepare("SELECT name, id FROM sessions WHERE id = :id");
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt = $db->prepare("SELECT id, name FROM exercises WHERE workout_id = :workout_id");
+        $stmt->bindValue(":workout_id", $workoutId);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-
-    public static function deleteSession(int $id): int {
+    public static function addExercise(string $name, int $workoutId): int
+    {
         $db = self::$connection;
 
-        $stmt = $db->prepare("DELETE FROM sessions WHERE id = :id");
+        $stmt = $db->prepare("INSERT INTO exercises(name, workout_id) VALUES(:name, :workout_id)");
+        $stmt->bindValue(':name', $name);
+        $stmt->bindValue(':workout_id', $workoutId);
+        $stmt->execute();
+
+        return $db->lastInsertId();
+    }
+
+    public static function editExercise(int $exerciseId, string $name): int {
+        $db = self::$connection;
+
+        $stmt = $db->prepare("UPDATE exercises SET name = :name WHERE id = :id");
+        $stmt->bindValue(':name', $name);
+        $stmt->bindValue(':id', $exerciseId);
+        $stmt->execute();
+
+        return $stmt->rowCount();
+    }
+
+    public static function getSets(int $exerciseId): array
+    {
+        $db = self::$connection;
+        $stmt = $db->prepare("SELECT * FROM sets WHERE exercise_id = :exercise_id");
+        $stmt->bindValue(':exercise_id', $exerciseId);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public static function addSet(int $exerciseId, int $repetitions, string $measureUnit, string $restTime): int
+    {
+        $db = self::$connection;
+
+        $stmt = $db->prepare("INSERT INTO sets(exercise_id, repetitions, measure_unit, rest_time) VALUES(:exercise_id, :repetitions, :measure_unit, :rest_time)");
+        $stmt->bindValue(':exercise_id', $exerciseId);
+        $stmt->bindValue(':repetitions', $repetitions);
+        $stmt->bindValue(':measure_unit', $measureUnit);
+        $stmt->bindValue(':rest_time', $restTime);
+        $stmt->execute();
+
+        return $db->lastInsertId();
+    }
+
+    public static function editSet(int $setId, int $repetitions, string $measureUnit, string $restTime): int
+    {
+        $db = self::$connection;
+
+        $stmt = $db->prepare("
+        UPDATE sets
+        SET rest_time = :rest_time,
+            repetitions = :repetitions,
+            measure_unit = :measure_unit
+        WHERE id = :set_id
+    ");
+
+        $stmt->bindValue(':repetitions', $repetitions);
+        $stmt->bindValue(':measure_unit', $measureUnit);
+        $stmt->bindValue(':rest_time', $restTime);
+        $stmt->bindValue(':set_id', $setId);
+
+        $stmt->execute();
+
+        return $stmt->rowCount();
+    }
+
+
+    public static function deleteSet(int $id): int
+    {
+        $db = self::$connection;
+
+        $stmt = $db->prepare("DELETE FROM sets WHERE id = :id");
+        $stmt->bindValue(':id', $id);
+        $stmt->execute();
+
+        return $stmt->rowCount();
+    }
+
+    public static function deleteExercise(int $id): int
+    {
+        $db = self::$connection;
+
+        $stmt = $db->prepare("DELETE FROM exercises WHERE id = :id");
+        $stmt->bindValue(':id', $id);
+        $stmt->execute();
+
+        return $stmt->rowCount();
+    }
+
+
+    public static function getWorkout(int $id): array
+    {
+        $db = self::$connection;
+        $stmt = $db->prepare("SELECT name, id FROM workouts WHERE id = :id");
         $stmt->bindValue(':id', $id, PDO::PARAM_INT);
         $stmt->execute();
 
-        return $stmt->rowCount(); // returns number of rows deleted
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public static function createSession(string $name): int {
+    public static function deleteWorkout(int $id): int
+    {
         $db = self::$connection;
 
-        $stmt = $db->prepare("INSERT INTO sessions(name) VALUES(:name)");
+        $stmt = $db->prepare("DELETE FROM workouts WHERE id = :id");
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->rowCount();
+    }
+
+    public static function addWorkout(string $name): int
+    {
+        $db = self::$connection;
+
+        $stmt = $db->prepare("INSERT INTO workouts(name) VALUES(:name)");
         $stmt->bindValue(':name', $name);
         $stmt->execute();
 
-        return (int) $db->lastInsertId();
+        return (int)$db->lastInsertId();
+    }
+
+    public static function editWorkout(int $id, string $name): int {
+        $db = self::$connection;
+
+        $stmt = $db->prepare("UPDATE workouts SET name = :name WHERE id = :id");
+        $stmt->bindValue(':name', $name);
+        $stmt->bindValue(':id', $id);
+        $stmt->execute();
+        return $stmt->rowCount();
     }
 }
