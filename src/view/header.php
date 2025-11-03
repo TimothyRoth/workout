@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Document</title>
-    <link rel="stylesheet" href="/css/main.css?v=2" />
+    <link rel="stylesheet" href="/css/main.css?v=3" />
     <script src="/js/workout.js"></script>
 </head>
 <body>
