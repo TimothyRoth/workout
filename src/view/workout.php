@@ -119,6 +119,9 @@
                                 <input type="hidden" name="exercise_id" value="<?= $exercise['id'] ?>">
                                 <div class="flex column gap-m">
                                     <label>
+                                        <input type="number" name="amount" min="1" max="10" value="1"/>
+                                    </label>
+                                    <label>
                                         <input type="number" name="repetitions" placeholder="Wiederholungen"
                                                required/>
                                     </label>
@@ -129,9 +132,6 @@
                                     <label>
                                         <input type="text" name="rest_time" placeholder="Pausenzeit"
                                                required/>
-                                    </label>
-                                    <label>
-                                        <input type="text" name="amount" min="1" max="10" value="1"/>
                                     </label>
                                     <input class="button addButton" type="submit" value="Satz hinzufügen">
                                 </div>
