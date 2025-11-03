@@ -73,38 +73,45 @@ class Controller
         $router->map('POST', '/addSet', function () use ($router) {
             $workoutId = $_POST['workout_id'] ?? null;
             $exerciseId = $_POST['exercise_id'] ?? null;
+            $exerciseName = $_POST['exercise_name'] ?? null;
             $restTime = $_POST['rest_time'] ?? null;
             $repetitions = $_POST['repetitions'] ?? null;
             $measureUnit = $_POST['measure_unit'] ?? null;
+            $amount = $_POST['amount'] ?? null;
 
-            if ($workoutId && $exerciseId && $restTime && $repetitions && $measureUnit) {
-                Database::addSet($exerciseId, $repetitions, $measureUnit, $restTime);
-                header("Location: /workout?workout_id={$workoutId}");
+            if ($workoutId && $exerciseId && $restTime && $repetitions && $measureUnit && $exerciseName && $amount) {
+                for($i = 0; $i < $amount; $i++) {
+                    Database::addSet($exerciseId, $repetitions, $measureUnit, $restTime);
+                }
+                header("Location: /workout?workout_id={$workoutId}#$exerciseName");
                 exit;
             }
         });
 
         $router->map('POST', '/editSet', function () use ($router) {
             $workoutId = $_POST['workout_id'] ?? null;
+            $exerciseName = $_POST['exercise_name'] ?? null;
             $setId = $_POST['set_id'] ?? null;
             $restTime = $_POST['rest_time'] ?? null;
             $repetitions = $_POST['repetitions'] ?? null;
             $measureUnit = $_POST['measure_unit'] ?? null;
 
-            if ($workoutId && $setId && $restTime && $repetitions && $measureUnit) {
+            if ($workoutId && $setId && $restTime && $repetitions && $measureUnit && $exerciseName) {
+                var_dump($exerciseName);
                 Database::editSet($setId, $repetitions, $measureUnit, $restTime);
-                header("Location: /workout?workout_id={$workoutId}");
+                header("Location: /workout?workout_id={$workoutId}#$exerciseName");
                 exit;
             }
         });
 
         $router->map('POST', '/deleteSet', function () use ($router) {
             $workoutId = $_POST['workout_id'];
+            $exerciseName = $_POST['exercise_name'] ?? null;
             $setId = $_POST['set_id'] ?? null;
 
             if ($workoutId && $setId) {
                 Database::deleteSet($setId);
-                header("Location: /workout?workout_id={$workoutId}");
+                header("Location: /workout?workout_id={$workoutId}#$exerciseName");
                 exit;
             }
 
@@ -116,7 +123,7 @@ class Controller
 
             if ($name && $workoutId) {
                 Database::addExercise($name, $workoutId);
-                header("Location: /workout?workout_id={$workoutId}");
+                header("Location: /workout?workout_id={$workoutId}#$name");
                 exit;
             }
         });
@@ -139,7 +146,7 @@ class Controller
 
             if ($exerciseId && $name && $workoutId) {
                 Database::editExercise($exerciseId, $name);
-                header("Location: /workout?workout_id={$workoutId}");
+                header("Location: /workout?workout_id={$workoutId}#$name");
                 exit;
             }
         });

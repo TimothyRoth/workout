@@ -15,7 +15,7 @@
         <?php if (count($params['exercises']) > 0) { ?>
         <div class="exercises flex column gap-m">
             <?php foreach ($params['exercises'] as $exercise) { ?>
-            <div class="exercise">
+            <div class="exercise" id="<?= $exercise['name'] ?>">
                 <div class="top">
                     <h3 class="exerciseName"><?= $exercise['name'] ?></h3>
                     <div class="editButton" data-target="edit-exercise-<?= $exercise['id'] ?>"><img
@@ -59,6 +59,7 @@
                             <div class="flex column gap-m">
                                 <form method="POST" action="/editSet">
                                     <div class="flex column gap-m">
+                                        <input type="hidden" name="exercise_name" value="<?= $exercise['name'] ?>">
                                         <input type="hidden" name="set_id"
                                                value="<?= $set['id'] ?>">
                                         <input type="hidden" name="workout_id"
@@ -83,6 +84,7 @@
                                 </form>
                             </div>
                             <form method="POST" action="/deleteSet">
+                                <input type="hidden" name="exercise_name" value="<?= $exercise['name'] ?>">
                                 <input type="hidden" name="set_id"
                                        value="<?= $set['id'] ?>">
                                 <input type="hidden" name="workout_id"
@@ -113,6 +115,7 @@
                             <form class="addSet" method="POST" action="/addSet">
                                 <input type="hidden" name="workout_id"
                                        value="<?= $params['workout']['id'] ?>">
+                                <input type="hidden" name="exercise_name" value="<?= $exercise['name'] ?>">
                                 <input type="hidden" name="exercise_id" value="<?= $exercise['id'] ?>">
                                 <div class="flex column gap-m">
                                     <label>
@@ -126,6 +129,9 @@
                                     <label>
                                         <input type="text" name="rest_time" placeholder="Pausenzeit"
                                                required/>
+                                    </label>
+                                    <label>
+                                        <input type="text" name="amount" min="1" max="10" value="1"/>
                                     </label>
                                     <input class="button addButton" type="submit" value="Satz hinzufügen">
                                 </div>
