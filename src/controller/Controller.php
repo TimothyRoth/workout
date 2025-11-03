@@ -79,7 +79,7 @@ class Controller
             $measureUnit = $_POST['measure_unit'] ?? null;
             $amount = $_POST['amount'] ?? null;
 
-            if ($workoutId && $exerciseId && $restTime && $repetitions && $measureUnit && $exerciseName && $amount) {
+            if ($workoutId && $exerciseId && $restTime && $repetitions !== null && $measureUnit && $exerciseName && $amount) {
                 for($i = 0; $i < $amount; $i++) {
                     Database::addSet($exerciseId, $repetitions, $measureUnit, $restTime);
                 }
