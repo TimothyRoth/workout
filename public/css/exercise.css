@@ -1,0 +1,32 @@
+.exercise {
+    .top {
+        justify-content: space-between;
+        h3 {
+            color: #000;
+            font-weight: 500;
+        }
+    }
+
+    .sets {
+        overflow-x: auto;
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+
+            th,
+            td {
+                width: 20%;
+                border: 1px solid #ccc;
+                padding: 8px 12px;
+            }
+
+            th {
+                text-align: left;
+                background-color: #f2f2f2;
+            }
+        }
+    }
+}
+

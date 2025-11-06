@@ -17,7 +17,6 @@ const editContainer = () => {
                 })
 
                 const saveButton = container.querySelector(".saveButton");
-                console.log(saveButton.classList.contains("active"))
                 if(saveButton && !saveButton.classList.contains("active")) {
                     const inputFields = container.querySelectorAll("input");
                     inputFields.forEach(input => {

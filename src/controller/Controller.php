@@ -162,9 +162,9 @@ class Controller
 
     private static function renderView(string $view, array $params = []): void
     {
-        include_once __DIR__ . "/../view/header.php";
+        include_once __DIR__ . "/../view/parts/header.php";
         include_once __DIR__ . '/../view/' . $view . '.php';
-        include_once __DIR__ . "/../view/footer.php";
+        include_once __DIR__ . "/../view/parts/footer.php";
     }
 
     private static function render404(): void

@@ -1,0 +1,22 @@
+.addWorkout {
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 20px;
+}
+
+.workouts {
+    .workout {
+        display: flex;
+        justify-content: space-between;
+
+        &:not(&:last-child) {
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 20px;
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+    }
+}
