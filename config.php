@@ -1,2 +1,2 @@
 <?php
-define("VERSION", time());
+const VERSION = '5';
