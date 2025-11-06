@@ -124,9 +124,6 @@ const next = (view, exerciseIndex, setIndex) => {
 
             addWorkload(document.querySelector("#repInput").value, document.querySelector("#measureUnitInput").value);
 
-            const breakTime = parseInt(workout.exercises[exerciseIndex].sets[setIndex].breaktime)
-            await initBreak(view, breakTime);
-
             const lastExercise = exerciseIndex === workout.exercises.length - 1;
             const lastSet = setIndex === workout.exercises[exerciseIndex].sets.length - 1;
 
@@ -136,6 +133,8 @@ const next = (view, exerciseIndex, setIndex) => {
                 return;
             }
 
+            const breakTime = parseInt(workout.exercises[exerciseIndex].sets[setIndex].breaktime)
+            await initBreak(view, breakTime);
             setIndex++;
 
             if(setIndex >= workout.exercises[exerciseIndex].sets.length) {
