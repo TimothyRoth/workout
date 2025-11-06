@@ -8,4 +8,5 @@
             } ?>
         </div>
     <?php } ?>
+    <a class="mt-2 inline-block" href="/logs">Logs</a>
 </div>

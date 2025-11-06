@@ -4,6 +4,7 @@ namespace App\controller;
 
 use AltoRouter;
 use App\Database;
+use Throwable;
 
 class Controller
 {
@@ -19,11 +20,16 @@ class Controller
             self::renderView('frontpage', $workouts);
         });
 
+        $router->map('GET', '/logs', function () {
+            $logs = Database::getLogs();
+            self::renderView('log', $logs);
+        });
+
         $router->map('GET', '/workout', function () {
             $workoutId = $_GET['workout_id'] ?? null;
 
             if ($workoutId !== null) {
-                $workout = Database::getWorkout($workoutId);;
+                $workout = Database::getWorkout($workoutId);
                 $exercises = Database::getExercises($workoutId);
 
                 foreach ($exercises as $index => $exercise) {
@@ -39,7 +45,7 @@ class Controller
             }
         });
 
-        $router->map('POST', '/addWorkout', function () use ($router) {
+        $router->map('POST', '/addWorkout', function () {
             $name = $_POST['workout_name'] ?? null;
 
             if ($name !== null) {
@@ -49,7 +55,7 @@ class Controller
             }
         });
 
-        $router->map('POST', '/deleteWorkout', function () use ($router) {
+        $router->map('POST', '/deleteWorkout', function () {
             $workoutId = $_POST['workout_id'];
 
             if ($workoutId) {
@@ -59,7 +65,7 @@ class Controller
             }
         });
 
-        $router->map('POST', '/editWorkout', function () use ($router) {
+        $router->map('POST', '/editWorkout', function ()  {
             $workoutId = $_POST['workout_id'] ?? null;
             $name = $_POST['workout_name'] ?? null;
 
@@ -70,7 +76,7 @@ class Controller
             }
         });
 
-        $router->map('POST', '/addSet', function () use ($router) {
+        $router->map('POST', '/addSet', function () {
             $workoutId = $_POST['workout_id'] ?? null;
             $exerciseId = $_POST['exercise_id'] ?? null;
             $exerciseName = $_POST['exercise_name'] ?? null;
@@ -88,7 +94,7 @@ class Controller
             }
         });
 
-        $router->map('POST', '/editSet', function () use ($router) {
+        $router->map('POST', '/editSet', function () {
             $workoutId = $_POST['workout_id'] ?? null;
             $exerciseName = $_POST['exercise_name'] ?? null;
             $setId = $_POST['set_id'] ?? null;
@@ -104,7 +110,7 @@ class Controller
             }
         });
 
-        $router->map('POST', '/deleteSet', function () use ($router) {
+        $router->map('POST', '/deleteSet', function () {
             $workoutId = $_POST['workout_id'];
             $exerciseName = $_POST['exercise_name'] ?? null;
             $setId = $_POST['set_id'] ?? null;
@@ -117,7 +123,7 @@ class Controller
 
         });
 
-        $router->map('POST', '/addExercise', function () use ($router) {
+        $router->map('POST', '/addExercise', function () {
             $name = $_POST['exercise_name'] ?? null;
             $workoutId = $_POST['workout_id'] ?? null;
 
@@ -128,7 +134,7 @@ class Controller
             }
         });
 
-        $router->map('POST', '/deleteExercise', function () use ($router) {
+        $router->map('POST', '/deleteExercise', function () {
             $workoutId = $_POST['workout_id'] ?? null;
             $exerciseId = $_POST['exercise_id'] ?? null;
 
@@ -139,7 +145,7 @@ class Controller
             }
         });
 
-        $router->map('POST', '/editExercise', function () use ($router) {
+        $router->map('POST', '/editExercise', function () {
             $workoutId = $_POST['workout_id'] ?? null;
             $exerciseId = $_POST['exercise_id'] ?? null;
             $name = $_POST['exercise_name'] ?? null;
@@ -147,6 +153,32 @@ class Controller
             if ($exerciseId && $name && $workoutId) {
                 Database::editExercise($exerciseId, $name);
                 header("Location: /workout?workout_id={$workoutId}#$name");
+                exit;
+            }
+        });
+
+        $router->map('POST', '/api/workout/log', function () {
+            try {
+                $data = json_decode(file_get_contents('php://input'), true, 512, JSON_THROW_ON_ERROR);
+
+                $workoutId = $data['workout_id'] ?? null;
+                $duration  = $data['duration'] ?? null;
+                $workload  = $data['workload'] ?? null;
+
+                if($workoutId !== null && $duration !== null && $workload !== null) {
+                    Database::addLog($workoutId, $workload, $duration);
+                    header('Content-Type: application/json');
+                    echo json_encode(['status' => 'success'], JSON_THROW_ON_ERROR);
+                    exit;
+                }
+
+                header('Content-Type: application/json', true, 400);
+                echo json_encode(['status' => 'error', 'message' => 'Invalid input'], JSON_THROW_ON_ERROR);
+                exit;
+
+            } catch(Throwable $e) {
+                header($_SERVER["SERVER_PROTOCOL"] . ' 500 Internal Server Error');
+                echo $e->getMessage();
                 exit;
             }
         });

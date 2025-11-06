@@ -4,7 +4,8 @@
   "type": "project",
   "require": {
     "php": ">=8.1",
-    "altorouter/altorouter": "^2.0"
+    "altorouter/altorouter": "^2.0",
+    "ext-pdo": "*"
   },
   "autoload": {
     "psr-4": {

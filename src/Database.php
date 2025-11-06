@@ -36,7 +36,7 @@ class Database
         $db->exec("
             CREATE TABLE IF NOT EXISTS workoutLog (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                wordkout_id INTEGER NOT NULL,
+                workout_id INTEGER NOT NULL,
                 workload INTEGER NOT NULL,
                 duration INTEGER NOT NULL,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -48,7 +48,8 @@ class Database
             CREATE TABLE IF NOT EXISTS workouts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
-          
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
         ");
 
@@ -80,9 +81,7 @@ class Database
     public static function getWorkouts(): array
     {
         $db = self::$connection;
-        $stmt = $db->prepare("SELECT name, id FROM workouts");
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $db->query("SELECT name, id FROM workouts")->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public static function getExercises(int $workoutId): array
@@ -227,4 +226,40 @@ class Database
         $stmt->execute();
         return $stmt->rowCount();
     }
+
+    public static function addLog(int $workoutId, int $workload, int $duration): int
+    {
+        $db = self::$connection;
+
+        $stmt = $db->prepare("INSERT INTO workoutLog(workout_id, workload, duration) VALUES(:workout_id, :workload, :duration)");
+        $stmt->bindValue(':workout_id', $workoutId);
+        $stmt->bindValue(':workload', $workload);
+        $stmt->bindValue(':duration', $duration);
+        $stmt->execute();
+
+        return (int)$db->lastInsertId();
+    }
+
+    public static function getLogs(): array
+    {
+        $db = self::$connection;
+
+        $query = "
+        SELECT 
+            wl.id,
+            wl.workout_id,
+            wl.workload,
+            wl.duration,
+            wl.created_at,
+            w.name AS workout_name
+        FROM workoutLog wl
+        JOIN workouts w ON wl.workout_id = w.id
+        ORDER BY wl.created_at DESC
+    ";
+
+        $stmt = $db->query($query);
+        return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    }
+
+
 }

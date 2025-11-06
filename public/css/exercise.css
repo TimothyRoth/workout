@@ -1,3 +1,15 @@
+.singleWorkoutView {
+    .startWorkout {
+        margin-left: auto;
+        img {
+            width: 25px;
+            height: 25px;
+            position: relative;
+            top: 2px;
+        }
+    }
+}
+
 .exercise {
     .top {
         justify-content: space-between;

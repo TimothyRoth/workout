@@ -1,0 +1,10 @@
+.entries {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+
+    .logEntry {
+        border-top: 1px solid #000;
+        padding-top: 20px;
+    }
+}
