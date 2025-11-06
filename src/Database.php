@@ -34,11 +34,21 @@ class Database
         $db = self::$connection;
 
         $db->exec("
+            CREATE TABLE IF NOT EXISTS workoutLog (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                wordkout_id INTEGER NOT NULL,
+                workload INTEGER NOT NULL,
+                duration INTEGER NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+        ");
+
+        $db->exec("
             CREATE TABLE IF NOT EXISTS workouts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+          
             );
         ");
 
