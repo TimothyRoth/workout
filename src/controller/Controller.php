@@ -85,7 +85,7 @@ class Controller
             $measureUnit = $_POST['measure_unit'] ?? null;
             $amount = $_POST['amount'] ?? null;
 
-            if ($workoutId && $exerciseId && $restTime && $repetitions !== null && $measureUnit !== null && $exerciseName && $amount) {
+            if ($workoutId && $exerciseId && $restTime !== null && $repetitions !== null && $measureUnit !== null && $exerciseName && $amount) {
                 for($i = 0; $i < $amount; $i++) {
                     Database::addSet($exerciseId, $repetitions, $measureUnit, $restTime);
                 }
@@ -102,7 +102,7 @@ class Controller
             $repetitions = $_POST['repetitions'] ?? null;
             $measureUnit = $_POST['measure_unit'] ?? null;
 
-            if ($workoutId && $setId && $restTime && $repetitions && $measureUnit && $exerciseName) {
+            if ($workoutId && $setId && $restTime !== null && $repetitions !== null && $measureUnit !== null && $exerciseName) {
                 var_dump($exerciseName);
                 Database::editSet($setId, $repetitions, $measureUnit, $restTime);
                 header("Location: /workout?workout_id={$workoutId}#$exerciseName");
