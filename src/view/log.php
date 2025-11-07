@@ -12,40 +12,50 @@
                 $max = $log['max_workload'];
 
                 $deltaMax = round(($current - $max) / $max * 100, 1);
-                $deltaPrev = $previous !== null ? round(($current - $previous) / $previous * 100, 1) : null;
+                $deltaPrev = $previous !== null ? round(($current - $previous) / $previous * 100, 2) : null;
 
-                if ($current === $max) {
-                    $workoutClass = "high";
-                } elseif ($current > $previous) {
-                    $workoutClass = "medium";
-                } else {
-                    $workoutClass = "low";
-                } ?>
+                $currentToPrevClass = "medium";
+                $currentToMaxClass = "medium";
+
+                if ($current >= $max && ($previous === null || $current > $previous)) {
+                    $currentToMaxClass = "gold";
+                } elseif ($current < $max) {
+                    $currentToMaxClass = "low";
+                }
+
+
+                if($previous !== null) {
+                    if($current > $previous) {
+                        $currentToPrevClass = "high";
+                    } elseif ($current < $previous) {
+                        $currentToPrevClass = "low";
+                    }
+                }
+              ?>
 
                 <div class="logEntry pt-2">
-                    <p>
-                        <b>Workout: </b><?= htmlspecialchars($log['workout_name']) ?>
-                        <span class="<?= $workoutClass ?>">
-                            <?= "<br>" ?>
-                            <?php if ($deltaMax > 0) {
-                                echo "+{$deltaMax}% vom Bestwert";
-                            }
-                            elseif ($deltaMax < 0) {
-                                echo "{$deltaMax}% vom Bestwert";
-                            }
-                            else {
-                                echo "<br>Bester Wert!";
-                            } ?>
-                            <?php if ($deltaPrev !== null) {
-                                echo "<br>";
-                                echo $deltaPrev > 0 ? "+{$deltaPrev}%" : "{$deltaPrev}%";
-                                echo " vom vorherigen Wert";
-                            } ?>
-                        </span>
-                    </p>
+                    <p><b>Workout: </b><?= htmlspecialchars($log['workout_name']) ?></p>
                     <p><b>Datum: </b><?= htmlspecialchars($log['created_at']) ?></p>
                     <p><b>Dauer: </b><?= htmlspecialchars($log['duration']) ?> Minuten</p>
                     <p><b>Workload: </b><?= htmlspecialchars($current) ?></p>
+                    <div class="flex gap-s column text-center">
+                        <span class="<?= $currentToMaxClass ?>">
+                        <?php if ($deltaMax >= 0 && $current === $previous) {
+                            echo "+{$deltaMax}% vom Bestwert";
+                        } elseif ($deltaMax < 0) {
+                            echo "{$deltaMax}% vom Bestwert";
+                        } else {
+                            echo "Neuer Bestwert!";
+                        } ?>
+
+                        <?php if ($deltaPrev !== null) { ?>
+                        </span>
+                        <br>
+                        <span class="<?= $currentToPrevClass ?>">
+                        <?= $deltaPrev >= 0 ? "+{$deltaPrev}%" : "{$deltaPrev}%" ?> vom vorherigen Wert
+                        </span>
+                        <?php } ?>
+                    </div>
                 </div>
             <?php } ?>
         </div>
