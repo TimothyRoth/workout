@@ -245,16 +245,18 @@ class Database
         $db = self::$connection;
 
         $query = "
-        SELECT 
+        SELECT
             wl.id,
             wl.workout_id,
-            wl.workload,
+            wl.workload AS actual_workload,
             wl.duration,
             wl.created_at,
-            w.name AS workout_name
+            w.name AS workout_name,
+            MAX(wl.workload) OVER (PARTITION BY wl.workout_id) AS max_workload,
+            LAG(wl.workload) OVER (PARTITION BY wl.workout_id ORDER BY wl.created_at) AS previous_workload
         FROM workoutLog wl
         JOIN workouts w ON wl.workout_id = w.id
-        ORDER BY wl.created_at DESC
+        ORDER BY wl.created_at DESC;
     ";
 
         $stmt = $db->query($query);

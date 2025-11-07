@@ -175,7 +175,7 @@ const showSummary = (view) => {
     summary.querySelector("#duration").innerText = workout.duration + " Minuten";
     summary.querySelector("#workload").innerText = workout.workload;
 
-    const finishWorkoutButton = summary.querySelector(".saveButton");
+    const finishWorkoutButton = summary.querySelector(".finishButton");
     finishWorkoutButton.addEventListener("click", finishWorkout)
 };
 

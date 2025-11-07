@@ -189,4 +189,12 @@ input:not(input[type="submit"], input[type="image"]) {
     display: inline-block;
 }
 
+.high {
+    color: green;
+}
+
+.low {
+    color: red;
+}
+
 
