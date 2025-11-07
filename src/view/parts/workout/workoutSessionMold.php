@@ -13,12 +13,12 @@
                     <label class="flex gap-s align-center" for="measureUnitInput"><b>Einheit</b><input name="measureUnit" id="measureUnitInput" type="text" /></label>
                 </div>
             </div>
-            <div class="button mt-2" id="next">Satz beenden</div>
+            <div class="button mt-2" id="next">Nächster Satz</div>
         </div>
         <div class="summary">
             <p><b>Dauer:</b> <span id="duration"></span></p>
             <p><b>Workload:</b> <span id="workload"></span></p>
-            <div class="button mt-2">Workout speichern und beenden</div>
+            <div class="button finishButton mt-2">Workout speichern und beenden</div>
         </div>
     </div>
 </div>

@@ -1,4 +1,4 @@
-<div class="workout">
+<div class="workout flex justify-space-between pb-2">
     <a href="/workout?workout_id=<?= $workout['id'] ?>">
         <p><?= $workout['name'] ?></p>
     </a>

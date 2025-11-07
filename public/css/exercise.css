@@ -1,6 +1,5 @@
 .singleWorkoutView {
     .startWorkout {
-        margin-left: auto;
         img {
             width: 25px;
             height: 25px;
@@ -12,7 +11,6 @@
 
 .exercise {
     .top {
-        justify-content: space-between;
         h3 {
             color: #000;
             font-weight: 500;
@@ -27,16 +25,22 @@
             border-collapse: collapse;
             table-layout: fixed;
 
+            tbody {
+                background: cornflowerblue;
+                color: #fff;
+                font-weight: 500;
+            }
+
             th,
             td {
                 width: 20%;
-                border: 1px solid #ccc;
+                border: 1px solid #fff;
                 padding: 8px 12px;
             }
 
             th {
                 text-align: left;
-                background-color: #f2f2f2;
+                background-color: gold;
             }
         }
     }

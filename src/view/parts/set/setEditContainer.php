@@ -3,7 +3,7 @@
         <div class="close">
             <img class="icon edit-icon" src="/img/close.png" alt="edit-icon"/>
         </div>
-        <div class="flex column gap-m">
+        <div class="inner flex column gap-m">
             <h3>Satz bearbeiten</h3>
             <form method="POST" action="/editSet">
                 <div class="flex column gap-m">
@@ -13,13 +13,13 @@
 
                     <div class="flex gap-m column">
                         <label>
-                            <input type="number" name="repetitions" value="<?= $set['repetitions'] ?>" required/>
+                            <input type="number" name="repetitions" placeholder="Wiederholungen" value="<?= $set['repetitions'] ?>" required/>
                         </label>
                         <label>
-                            <input type="text" name="measure_unit" value="<?= $set['measure_unit'] ?>" required/>
+                            <input type="text" name="measure_unit" placeholder="Einheit" value="<?= $set['measure_unit'] ?>" required/>
                         </label>
                         <label>
-                            <input type="text" name="rest_time" value="<?= $set['rest_time'] ?>" required/>
+                            <input type="text" name="rest_time" placeholder="Pausenzeit" value="<?= $set['rest_time'] ?>" required/>
                         </label>
                         <input class="button saveButton" type="submit" value="Änderungen speichern">
                     </div> <!-- closes .flex.gap-m.column -->

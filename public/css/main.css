@@ -7,17 +7,18 @@ body {
     padding: 0;
     font-family: FreeMono;
     font-size: 20px;
-}
-
-main {
-    padding-bottom: 20px;
+    min-height: 100vh;
+    background: bisque;
+    &.no-scroll {
+        overflow-y: hidden;
+    }
 }
 
 .wrapper {
     padding: 0 20px;
     position: relative;
     margin: 0 auto;
-    max-width: 700px;
+    max-width: 500px;
 }
 
 input {
@@ -56,6 +57,10 @@ input:not(input[type="submit"], input[type="image"]) {
 
 .justify-center {
     justify-content: center;
+}
+
+.justify-space-between {
+    justify-content: space-between;
 }
 
 .gap-s {

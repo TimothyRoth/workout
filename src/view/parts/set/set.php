@@ -2,8 +2,8 @@
     <thead>
     <tr>
         <th>Wh</th>
-        <th>Einheit</th>
-        <th>Pause</th>
+        <th>Eh</th>
+        <th>P</th>
     </tr>
     </thead>
     <tbody>

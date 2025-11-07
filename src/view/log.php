@@ -6,7 +6,7 @@
         <h2>Logs</h2>
         <div class="entries">
             <?php foreach($params as $log) { ?>
-                <div class="logEntry">
+                <div class="logEntry pt-2">
                     <p><b>Workout: </b><?= htmlspecialchars($log['workout_name']) ?></p>
                     <p><b>Datum: </b><?= htmlspecialchars($log['created_at']) ?></p>
                     <p><b>Dauer: </b><?= htmlspecialchars($log['duration']) ?> Minuten</p>

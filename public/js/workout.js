@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const editContainer = () => {
     const buttons = document.querySelectorAll(".editButton");
+    const body = document.querySelector("body");
     buttons.forEach(button => {
         button.addEventListener("click", () => {
             const target = button.dataset.target;
@@ -16,9 +17,12 @@ const editContainer = () => {
 
             if (container) {
                 container.classList.add("active");
+                body.classList.add("no-scroll");
+
                 container.querySelector(".close").addEventListener("click", () => {
                     container.classList.remove("active");
-                })
+                    body.classList.remove("no-scroll");
+                }, {once: true})
 
                 const saveButton = container.querySelector(".saveButton");
                 if(saveButton && !saveButton.classList.contains("active")) {
@@ -56,7 +60,9 @@ const deleteAction = () => {
 };
 const initWorkoutSession = () => {
     const button = document.querySelector(".startWorkout");
+    const body = document.querySelector("body");
     button.addEventListener("click", () => {
+        body.classList.add("no-scroll");
         workout.startTime = new Date().getTime();
         loadWorkout();
         startProgress(initView());
@@ -152,9 +158,9 @@ const addWorkload = (reps, measureUnit) => {
         workout.workload = 0;
     }
 
-    const addedWorkload = reps * parseFloat(measureUnit);
-    workout.workload += addedWorkload;
-    console.log(workout.workload);
+    const repsNum = parseInt(reps, 10) || 0;
+    const unitNum = parseFloat(measureUnit) || 0;
+    workout.workload += repsNum * unitNum;
 };
 
 const showSummary = (view) => {
@@ -169,7 +175,7 @@ const showSummary = (view) => {
     summary.querySelector("#duration").innerText = workout.duration + " Minuten";
     summary.querySelector("#workload").innerText = workout.workload;
 
-    const finishWorkoutButton = summary.querySelector(".button");
+    const finishWorkoutButton = summary.querySelector(".saveButton");
     finishWorkoutButton.addEventListener("click", finishWorkout)
 };
 
@@ -180,14 +186,17 @@ const initBreak = (view, seconds) => {
 
         buttonDisabled = true;
         button.classList.add("breaktime");
-        button.innerText = "Noch: " + seconds + " Sekunden";
         view.classList.add("breaktime");
 
-        const timer = setInterval(() => {
-            seconds--;
+        const start = Date.now();
+        const end = start + seconds * 1000;
 
-            if (seconds <= 0) {
-                clearInterval(timer);
+        const update = () => {
+            const now = Date.now();
+            const remaining = Math.max(0, Math.ceil((end - now) / 1000));
+
+            if (remaining <= 0) {
+                // end reached
                 button.innerText = currentButtonText;
                 button.classList.remove("breaktime");
                 buttonDisabled = false;
@@ -196,10 +205,14 @@ const initBreak = (view, seconds) => {
                 return;
             }
 
-            button.innerText = "Pause: " + seconds + " Sekunden";
-        }, 1000);
+            button.innerText = "Pause: " + remaining + " Sekunden";
+            requestAnimationFrame(update); // smoother + not affected by throttling when active
+        };
+
+        update();
     });
 };
+
 
 const finishWorkout = async () => {
     const response = await fetch("/api/workout/log", {

@@ -1,14 +1,15 @@
 .edit-container {
+    justify-content: center;
+    align-items: center;
     opacity: 0;
-    padding-top: 50px;
     z-index: -1;
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: #fff;
     transition: .3s ease-in-out;
+    background: gold;
 
     &.active {
         transition: .3s ease-in-out;
@@ -16,7 +17,16 @@
         z-index: 10;
     }
 
-    input:not(input[type="submit"], input[type="image"]) {
-        width: 100%;
+    .wrapper {
+        padding-top: 50px;
+
+        .inner {
+            overflow: auto;
+            max-height: 80vh;
+        }
+
+        input:not(input[type="submit"], input[type="image"]) {
+            width: 100%;
+        }
     }
 }

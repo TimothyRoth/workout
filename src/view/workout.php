@@ -5,7 +5,7 @@
                                                 src="/img/back.png"
                                                 alt="back-icon"/></a>
             <h3 class=""><?= $params['workout']['name'] ?></h3>
-            <div class="startWorkout">
+            <div class="startWorkout ml-auto">
                 <img src="/img/start.png" alt="start-icon" class="icon start-icon"/>
             </div>
         </div>
