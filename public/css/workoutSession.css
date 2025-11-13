@@ -1,5 +1,7 @@
 .workoutSessionView {
     position: fixed;
+    display: flex;
+    align-items: center;
     top: 0;
     left: 0;
     background: black;
@@ -42,7 +44,8 @@
     }
 
     .wrapper {
-        padding-top: 50px;
+        height: 80vh;
+        overflow: auto;
     }
 
 

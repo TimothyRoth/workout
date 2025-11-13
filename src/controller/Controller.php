@@ -164,9 +164,10 @@ class Controller
                 $workoutId = $data['workout_id'] ?? null;
                 $duration  = $data['duration'] ?? null;
                 $workload  = $data['workload'] ?? null;
+                $summary  = $data['summary'] ?? null;
 
-                if($workoutId !== null && $duration !== null && $workload !== null) {
-                    Database::addLog($workoutId, $workload, $duration);
+                if($workoutId !== null && $duration !== null && $workload !== null && $summary !== null) {
+                    Database::addLog($workoutId, $workload, $duration, $summary);
                     header('Content-Type: application/json');
                     echo json_encode(['status' => 'success'], JSON_THROW_ON_ERROR);
                     exit;

@@ -25,6 +25,13 @@
         color: #fff;
     }
 
+    &.addButton.editButton {
+        max-width: max-content;
+        font-size: 30px;
+        margin: 20px auto 0;
+        padding: 0 10px;
+    }
+
     &.finishButton {
         border-color: green;
         background: green;
@@ -59,6 +66,7 @@
 .close {
     cursor: pointer;
     width: calc(100% - 40px);
+
     img {
         position: absolute;
         right: 10px;

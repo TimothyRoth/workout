@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     editContainer();
     deleteAction();
     initWorkoutSession();
+    initAccordion();
 });
 
 const editContainer = () => {
@@ -61,12 +62,14 @@ const deleteAction = () => {
 const initWorkoutSession = () => {
     const button = document.querySelector(".startWorkout");
     const body = document.querySelector("body");
-    button.addEventListener("click", () => {
-        body.classList.add("no-scroll");
-        workout.startTime = new Date().getTime();
-        loadWorkout();
-        startProgress(initView());
-    });
+    if(button) {
+        button.addEventListener("click", () => {
+            body.classList.add("no-scroll");
+            workout.startTime = new Date().getTime();
+            loadWorkout();
+            startProgress(initView());
+        });
+    }
 };
 
 const loadWorkout = () => {
@@ -128,7 +131,16 @@ const next = (view, exerciseIndex, setIndex) => {
                 return;
             }
 
-            addWorkload(document.querySelector("#repInput").value, document.querySelector("#measureUnitInput").value);
+            const reps = document.querySelector("#repInput").value;
+            const measureUnit =  document.querySelector("#measureUnitInput").value;
+
+            addToWorkload(reps, measureUnit);
+
+            addToSummary(
+                workout.exercises[exerciseIndex].name,
+                reps, measureUnit,
+                parseInt(workout.exercises[exerciseIndex].sets[setIndex].breaktime
+                ));
 
             const lastExercise = exerciseIndex === workout.exercises.length - 1;
             const lastSet = setIndex === workout.exercises[exerciseIndex].sets.length - 1;
@@ -139,8 +151,6 @@ const next = (view, exerciseIndex, setIndex) => {
                 return;
             }
 
-            const breakTime = parseInt(workout.exercises[exerciseIndex].sets[setIndex].breaktime)
-            await initBreak(view, breakTime);
             setIndex++;
 
             if(setIndex >= workout.exercises[exerciseIndex].sets.length) {
@@ -149,10 +159,14 @@ const next = (view, exerciseIndex, setIndex) => {
             }
 
             proceed(view, exerciseIndex, setIndex);
+
+            const breakTime = parseInt(workout.exercises[exerciseIndex].sets[setIndex].breaktime)
+            await initBreak(view, breakTime);
+
         });
 }
 
-const addWorkload = (reps, measureUnit) => {
+const addToWorkload = (reps, measureUnit) => {
 
     if(!workout.workload) {
         workout.workload = 0;
@@ -162,6 +176,15 @@ const addWorkload = (reps, measureUnit) => {
     const unitNum = parseFloat(measureUnit) || 0;
     workout.workload += repsNum * unitNum;
 };
+
+const addToSummary = (exercise, reps, measureUnit, breakTime) => {
+
+    if(!workout.summary) {
+        workout.summary = "";
+    }
+
+    workout.summary += `exercise=${exercise} reps=${reps} measureUnit=${measureUnit} breaktime=${breakTime} \n`;
+}
 
 const showSummary = (view) => {
     const summary = view.querySelector(".summary");
@@ -174,6 +197,9 @@ const showSummary = (view) => {
 
     summary.querySelector("#duration").innerText = workout.duration + " Minuten";
     summary.querySelector("#workload").innerText = workout.workload;
+
+    workout.summary = parseSummary(workout.summary);
+    summary.querySelector("#workout_summary").innerHTML = workout.summary;
 
     const finishWorkoutButton = summary.querySelector(".finishButton");
     finishWorkoutButton.addEventListener("click", finishWorkout)
@@ -224,12 +250,64 @@ const finishWorkout = async () => {
             workout_id: workout.id,
             duration: workout.duration,
             workload: workout.workload,
+            summary: workout.summary
         }),
     });
 
     if(response.ok) {
         window.location.href = "/logs";
     } else {
+        console.error(`Error: ${response.status} - ${response.statusText}`);
         alert("Fehler beim Speichern des Workouts. Bitte versuche es erneut.");
     }
 };
+
+const parseSummary = summary => {
+
+    const array = summary.split("\n");
+    const filtered = array.filter(line => line.trim() !== "");
+
+    let exercises = [];
+    let output = "";
+
+    filtered.forEach(line => {
+        const splitLine = line.split(" ");
+        const exercise = splitLine[0].split("=")[1];
+        const reps = splitLine[1].split("=")[1];
+        const measureUnit = splitLine[2].split("=")[1];
+        const breaktime = splitLine[3].split("=")[1];
+
+        if(!exercises.includes(exercise)) {
+            if(exercises.length > 0) output += "</div>";
+            output += "<div>";
+            output += `<h5>Übung: ${exercise}</h5>`;
+            exercises.push(exercise);
+        }
+
+        output += "<div>"
+        output += `<p><b>Wiederholungen: </b>${reps}</p>`;
+        output += `<p><b>Einheit: </b>${measureUnit}</p>`;
+        output += `<p><b>Pause: </b>${breaktime}</p>`;
+        output += "</div>"
+    })
+
+    if (exercises.length > 0) output += "</div>";
+    return output;
+}
+
+const initAccordion = () => {
+    const accordions = document.querySelectorAll(".trigger-accordion");
+    accordions.forEach(accordion => {
+       const trigger = accordion.querySelector(".trigger");
+       const container = accordion.querySelector(".trigger-container");
+
+       trigger.addEventListener("click", () => {
+           if(container.classList.contains("active")) {
+               container.classList.remove("active");
+               return;
+           }
+
+           container.classList.add("active");
+       })
+    });
+}

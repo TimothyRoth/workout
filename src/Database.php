@@ -39,6 +39,7 @@ class Database
                 workout_id INTEGER NOT NULL,
                 workload INTEGER NOT NULL,
                 duration INTEGER NOT NULL,
+                summary TEXT NOT NULL,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
@@ -227,14 +228,15 @@ class Database
         return $stmt->rowCount();
     }
 
-    public static function addLog(int $workoutId, int $workload, int $duration): int
+    public static function addLog(int $workoutId, int $workload, int $duration, string $summary): int
     {
         $db = self::$connection;
 
-        $stmt = $db->prepare("INSERT INTO workoutLog(workout_id, workload, duration) VALUES(:workout_id, :workload, :duration)");
+        $stmt = $db->prepare("INSERT INTO workoutLog(workout_id, workload, duration, summary) VALUES(:workout_id, :workload, :duration, :summary)");
         $stmt->bindValue(':workout_id', $workoutId);
         $stmt->bindValue(':workload', $workload);
         $stmt->bindValue(':duration', $duration);
+        $stmt->bindValue(':summary', $summary);
         $stmt->execute();
 
         return (int)$db->lastInsertId();
@@ -251,6 +253,7 @@ class Database
             wl.workload AS actual_workload,
             wl.duration,
             wl.created_at,
+            wl.summary AS workout_summary,
             w.name AS workout_name,
             MAX(wl.workload) OVER (PARTITION BY wl.workout_id) AS max_workload,
             LAG(wl.workload) OVER (PARTITION BY wl.workout_id ORDER BY wl.created_at) AS previous_workload

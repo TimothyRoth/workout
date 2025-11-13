@@ -37,6 +37,12 @@
                     <p><b>Workout: </b><?= htmlspecialchars($log['workout_name']) ?></p>
                     <p><b>Datum: </b><?= htmlspecialchars($log['created_at']) ?></p>
                     <p><b>Dauer: </b><?= htmlspecialchars($log['duration']) ?> Minuten</p>
+                    <div class="trigger-accordion">
+                        <p class="trigger">Show Log</p>
+                        <div class="trigger-container" id="workout_summary">
+                            <?= $log['workout_summary'] ?>
+                        </div>
+                    </div>
                     <p><b>Workload: </b><?= htmlspecialchars($current) ?></p>
                     <div class="flex gap-s column text-center">
                         <span class="<?= $currentToMaxClass ?>">
