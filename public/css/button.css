@@ -14,27 +14,30 @@
     }
 
     &.deleteButton {
-        border-color: red;
-        background: red;
+        border-color: #EF4444;
+        background: #EF4444;
         color: #fff;
     }
 
     &.addButton {
-        border-color: green;
-        background: green;
+        border-color: #22C55E;
+        background: #22C55E;
         color: #fff;
     }
 
-    &.addButton.editButton {
+    &.editButton {
         max-width: max-content;
         font-size: 30px;
+        border-color: #FACC15;
+        background: #FACC15;
         margin: 20px auto 0;
         padding: 0 10px;
+        color: #1E1E1E;
     }
 
     &.finishButton {
-        border-color: green;
-        background: green;
+        border-color: #22C55E;
+        background: #22C55E;
         color: #fff;
     }
 

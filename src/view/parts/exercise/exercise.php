@@ -15,7 +15,7 @@
         }
         ?>
 
-        <div class="button addButton editButton" data-target="edit-sets-<?= $exercise['id'] ?>">+</div>
+        <div class="button editButton" data-target="edit-sets-<?= $exercise['id'] ?>">+</div>
 
         <?php include(__DIR__ . "/exerciseEditContainer.php"); ?>
     </div>

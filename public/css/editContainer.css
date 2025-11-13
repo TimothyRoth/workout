@@ -9,7 +9,7 @@
     width: 100vw;
     height: 100vh;
     transition: .3s ease-in-out;
-    background: gold;
+    background: #FACC15;
 
     &.active {
         transition: .3s ease-in-out;

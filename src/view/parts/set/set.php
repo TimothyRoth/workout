@@ -15,7 +15,7 @@
             <td>
                 <div class="editButton" data-target="edit-set-<?= $set['id'] ?>">
                     <img class="icon edit-icon"
-                         src="/img/edit_white.svg"
+                         src="/img/edit.png"
                          alt="edit-icon"/>
                 </div>
             </td>

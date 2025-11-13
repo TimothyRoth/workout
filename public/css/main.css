@@ -5,10 +5,11 @@ html {
 body {
     margin: 0;
     padding: 0;
+    color: #1E1E1E;
     font-family: FreeMono;
     font-size: 20px;
     min-height: 100vh;
-    background: bisque;
+    background: linear-gradient(180deg, #F8FAFC 0%, #EFF6FF 100%);
     &.no-scroll {
         overflow-y: hidden;
     }
@@ -18,7 +19,7 @@ body {
     padding: 0 20px;
     position: relative;
     margin: 0 auto;
-    max-width: 500px;
+    max-width: 400px;
 }
 
 input {
@@ -196,26 +197,26 @@ input:not(input[type="submit"], input[type="image"]) {
 .high {
     color: #fff;
     padding: 5px;
-    background: green;
+    background: #22C55E;
     border-radius: 5px;
 }
 
 .medium {
     color: #000;
     padding: 5px;
-    background: yellow;
+    background: #FDE047;
     border-radius: 5px;
 }
 
 .low {
     color: #fff;
     padding: 5px;
-    background: red;
+    background: #EF4444;
     border-radius: 5px;
 }
 
 .gold {
-    color: gold;
+    color: #FACC15;
     padding: 5px;
     background: #000;
     border-radius: 5px;
