@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
     deleteAction();
     initWorkoutSession();
     initAccordion();
+    loadWorkout()
 });
 
 const editContainer = () => {
@@ -77,12 +78,13 @@ const loadWorkout = () => {
     workout.name = document.querySelector("h3").innerText;
     const exercises = document.querySelectorAll(".exercise");
     workout.exercises = [];
+
     exercises.forEach((exercise, index) => {
         workout.exercises.push({
             name: exercise.querySelector(".exerciseName").innerText,
             sets: []
         });
-
+        console.log(exercise)
         const sets = exercise.querySelectorAll("table tbody tr");
         sets.forEach((set) => {
             workout.exercises[index].sets.push({
@@ -92,6 +94,8 @@ const loadWorkout = () => {
             });
         })
     });
+
+    console.log(workout.exercises)
 };
 const initView = () => {
     const view = document.querySelector(".workoutSessionView");
