@@ -40,7 +40,21 @@
                     <div class="trigger-accordion">
                         <p class="trigger">Show Log</p>
                         <div class="trigger-container" id="workout_summary">
-                            <?= $log['workout_summary'] ?>
+                            <?php $exercises = json_decode($log['workout_summary'], true)["exercises"];
+                                foreach ($exercises as $exercise) { ?>
+                                    <div>
+                                        <h5>Übung: <?= $exercise['name'] ?></h5>
+                                        <?php foreach ($exercise['sets'] as $index => $set) { ?>
+                                            <div>
+                                                <p><b><?= $index + 1 ?>. Satz</b></p>
+                                                <p><b>Wiederholungen:</b> <?= $set['reps'] ?></p>
+                                                <p><b>Einheit:</b> <?= $set['measureUnit'] ?></p>
+                                                <p><b>Pause:</b> <?= $set['breaktime'] ?></p>
+                                            </div>
+                                        <?php } ?>
+                                    </div>
+                                <?php }
+                            ?>
                         </div>
                     </div>
                     <p><b>Workload: </b><?= htmlspecialchars($current) ?></p>

@@ -6,7 +6,6 @@ document.addEventListener("DOMContentLoaded", () => {
     deleteAction();
     initWorkoutSession();
     initAccordion();
-    loadWorkout()
 });
 
 const editContainer = () => {
@@ -84,7 +83,7 @@ const loadWorkout = () => {
             name: exercise.querySelector(".exerciseName").innerText,
             sets: []
         });
-        console.log(exercise)
+
         const sets = exercise.querySelectorAll("table tbody tr");
         sets.forEach((set) => {
             workout.exercises[index].sets.push({
@@ -94,8 +93,6 @@ const loadWorkout = () => {
             });
         })
     });
-
-    console.log(workout.exercises)
 };
 const initView = () => {
     const view = document.querySelector(".workoutSessionView");
@@ -184,10 +181,11 @@ const addToWorkload = (reps, measureUnit) => {
 const addToSummary = (exercise, reps, measureUnit, breakTime) => {
 
     if(!workout.summary) {
-        workout.summary = "";
+        workout.summary = {};
+        workout.summary.log = "";
     }
 
-    workout.summary += `exercise=${exercise} reps=${reps} measureUnit=${measureUnit} breaktime=${breakTime} \n`;
+    workout.summary.log += `exercise=${exercise} reps=${reps} measureUnit=${measureUnit} breaktime=${breakTime} \n`;
 }
 
 const showSummary = (view) => {
@@ -202,8 +200,9 @@ const showSummary = (view) => {
     summary.querySelector("#duration").innerText = workout.duration + " Minuten";
     summary.querySelector("#workload").innerText = workout.workload;
 
-    workout.summary = parseSummary(workout.summary);
-    summary.querySelector("#workout_summary").innerHTML = workout.summary;
+    parseSummary();
+
+    summary.querySelector("#workout_summary").innerHTML = workout.summary.view;
 
     const finishWorkoutButton = summary.querySelector(".finishButton");
     finishWorkoutButton.addEventListener("click", finishWorkout)
@@ -254,7 +253,7 @@ const finishWorkout = async () => {
             workout_id: workout.id,
             duration: workout.duration,
             workload: workout.workload,
-            summary: workout.summary
+            summary: workout.summary.json
         }),
     });
 
@@ -266,15 +265,19 @@ const finishWorkout = async () => {
     }
 };
 
-const parseSummary = summary => {
+const parseSummary = () => {
 
-    const array = summary.split("\n");
+    const array = workout.summary.log.split("\n");
     const filtered = array.filter(line => line.trim() !== "");
 
     let exercises = [];
-    let output = "";
+    let jsonResponse = [];
+    let jsonIndex = 0;
 
-    filtered.forEach(line => {
+    workout.summary.view = "";
+    workout.summary.json = {};
+
+    filtered.forEach((line) => {
         const splitLine = line.split(" ");
         const exercise = splitLine[0].split("=")[1];
         const reps = splitLine[1].split("=")[1];
@@ -282,21 +285,37 @@ const parseSummary = summary => {
         const breaktime = splitLine[3].split("=")[1];
 
         if(!exercises.includes(exercise)) {
-            if(exercises.length > 0) output += "</div>";
-            output += "<div>";
-            output += `<h5>Übung: ${exercise}</h5>`;
+
+            if(exercises.length > 0) workout.summary.view += "</div>";
+            if(jsonResponse.length > 0) jsonIndex++;
+
+            workout.summary.view += "<div>";
+            workout.summary.view += `<h5>Übung: ${exercise}</h5>`;
             exercises.push(exercise);
+
+            jsonResponse.push({
+                name: exercise,
+                sets: []
+            })
         }
 
-        output += "<div>"
-        output += `<p><b>Wiederholungen: </b>${reps}</p>`;
-        output += `<p><b>Einheit: </b>${measureUnit}</p>`;
-        output += `<p><b>Pause: </b>${breaktime}</p>`;
-        output += "</div>"
+        jsonResponse[jsonIndex].sets.push(
+            {
+                reps,
+                measureUnit,
+                breaktime
+            }
+        );
+
+        workout.summary.view += "<div>"
+        workout.summary.view += `<p><b>Wiederholungen: </b>${reps}</p>`;
+        workout.summary.view += `<p><b>Einheit: </b>${measureUnit}</p>`;
+        workout.summary.view += `<p><b>Pause: </b>${breaktime}</p>`;
+        workout.summary.view += "</div>"
     })
 
-    if (exercises.length > 0) output += "</div>";
-    return output;
+    if (exercises.length > 0) workout.summary.view += "</div>";
+    workout.summary.json = JSON.stringify({exercises: jsonResponse});
 }
 
 const initAccordion = () => {
