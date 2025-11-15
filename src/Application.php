@@ -12,6 +12,7 @@ class Application
     public static function run(): void
     {
         Database::connect();
-        Controller::run();
+        $controller = new Controller();
+        $controller->run();
     }
 }

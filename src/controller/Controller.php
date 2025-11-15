@@ -4,31 +4,36 @@ namespace App\controller;
 
 use AltoRouter;
 use App\Database;
+use App\Utils;
 use Throwable;
 
 class Controller
 {
+    public function __construct(
+        private readonly Utils      $utils = new Utils(),
+        private readonly AltoRouter $router = new AltoRouter()
+    )
+    {
+    }
+
     /**
      * @throws \Exception
      */
-    public static function run(): void
+    public function run(): void
     {
-        $router = new AltoRouter();
-
-        $router->map('GET', '/', function () {
+        $this->router->map('GET', '/', function () {
             $workouts = Database::getWorkouts();
-            self::renderView('frontpage', $workouts);
+            $this->utils->renderView('frontpage', $workouts);
         });
 
-        $router->map('GET', '/logs', function () {
-            $logs = Database::getLogs();
-            self::renderView('log', $logs);
+        $this->router->map('GET', '/logs', function () {
+            $this->utils->renderView('log', Database::getLogs());
         });
 
-        $router->map('GET', '/workout', function () {
-            $workoutId = $_GET['workout_id'] ?? null;
+        $this->router->map('GET', '/workout', function () {
+            $workoutId = $this->utils->getHttpQueryParam('workout_id');
 
-            if ($workoutId !== null) {
+            if ($this->utils->nullChecker([$workoutId])) {
                 $workout = Database::getWorkout($workoutId);
                 $exercises = Database::getExercises($workoutId);
 
@@ -41,132 +46,143 @@ class Controller
                     'exercises' => $exercises
                 ];
 
-                self::renderView('workout', $params);
+                $this->utils->renderView('workout', $params);
+            } else {
+                $this->utils->render400();
             }
         });
 
-        $router->map('POST', '/addWorkout', function () {
-            $name = $_POST['workout_name'] ?? null;
+        $this->router->map('POST', '/addWorkout', function () {
+            $name = $this->utils->getHttpQueryParam('workout_name');
 
-            if ($name !== null) {
+            if ($this->utils->nullChecker([$name])) {
                 Database::addWorkout($name);
-                header('Location: /');
-                exit;
+                $this->utils->redirect("/");
+            } else {
+                $this->utils->render400();
             }
         });
 
-        $router->map('POST', '/deleteWorkout', function () {
-            $workoutId = $_POST['workout_id'];
+        $this->router->map('POST', '/deleteWorkout', function () {
+            $workoutId = $this->utils->getHttpQueryParam('workout_id');
 
-            if ($workoutId) {
+            if ($this->utils->nullChecker([$workoutId])) {
                 Database::deleteWorkout($workoutId);
-                header('Location: /');
-                exit;
+                $this->utils->redirect("/");
+            } else {
+                $this->utils->render400();
             }
         });
 
-        $router->map('POST', '/editWorkout', function ()  {
-            $workoutId = $_POST['workout_id'] ?? null;
-            $name = $_POST['workout_name'] ?? null;
+        $this->router->map('POST', '/editWorkout', function () {
+            $name = $this->utils->getHttpQueryParam('workout_name');
+            $workoutId = $this->utils->getHttpQueryParam('workout_id');
 
-            if ($workoutId && $name !== null) {
+            if ($this->utils->nullChecker([$name, $workoutId])) {
                 Database::editWorkout($workoutId, $name);
-                header("Location: /");
-                exit;
+                $this->utils->redirect("/");
+            } else {
+                $this->utils->render400();
             }
         });
 
-        $router->map('POST', '/addSet', function () {
-            $workoutId = $_POST['workout_id'] ?? null;
-            $exerciseId = $_POST['exercise_id'] ?? null;
-            $exerciseName = $_POST['exercise_name'] ?? null;
-            $restTime = $_POST['rest_time'] ?? null;
-            $repetitions = $_POST['repetitions'] ?? null;
-            $measureUnit = $_POST['measure_unit'] ?? null;
-            $amount = $_POST['amount'] ?? null;
+        $this->router->map('POST', '/addSet', function () {
+            $workoutId = $this->utils->getHttpQueryParam('workout_id');
+            $exerciseId = $this->utils->getHttpQueryParam('exercise_id');
+            $exerciseName = $this->utils->getHttpQueryParam('exercise_name');
+            $restTime = $this->utils->getHttpQueryParam('rest_time');
+            $repetitions = $this->utils->getHttpQueryParam('repetitions');
+            $measureUnit = $this->utils->getHttpQueryParam('measure_unit');
+            $amount = $this->utils->getHttpQueryParam('amount');
 
-            if ($workoutId && $exerciseId && $restTime !== null && $repetitions !== null && $measureUnit !== null && $exerciseName && $amount) {
-                for($i = 0; $i < $amount; $i++) {
+            if ($this->utils->nullChecker([$workoutId, $exerciseId, $exerciseName, $restTime, $measureUnit, $amount, $repetitions])) {
+                for ($i = 0; $i < $amount; $i++) {
                     Database::addSet($exerciseId, $repetitions, $measureUnit, $restTime);
                 }
-                header("Location: /workout?workout_id={$workoutId}#$exerciseName");
-                exit;
+
+                $this->utils->redirect("/workout", ['workout_id' => $workoutId], $exerciseName);
+            } else {
+                $this->utils->render400();
             }
         });
 
-        $router->map('POST', '/editSet', function () {
-            $workoutId = $_POST['workout_id'] ?? null;
-            $exerciseName = $_POST['exercise_name'] ?? null;
-            $setId = $_POST['set_id'] ?? null;
-            $restTime = $_POST['rest_time'] ?? null;
-            $repetitions = $_POST['repetitions'] ?? null;
-            $measureUnit = $_POST['measure_unit'] ?? null;
+        $this->router->map('POST', '/editSet', function () {
+            $workoutId = $this->utils->getHttpQueryParam('workout_id');
+            $exerciseName = $this->utils->getHttpQueryParam('exercise_name');
+            $setId = $this->utils->getHttpQueryParam('set_id');
+            $restTime = $this->utils->getHttpQueryParam('rest_time');
+            $repetitions = $this->utils->getHttpQueryParam('repetitions');
+            $measureUnit = $this->utils->getHttpQueryParam('measure_unit');
 
-            if ($workoutId && $setId && $restTime !== null && $repetitions !== null && $measureUnit !== null && $exerciseName) {
-                var_dump($exerciseName);
+            if ($this->utils->nullChecker([$workoutId, $exerciseName, $setId, $restTime, $measureUnit, $repetitions])) {
                 Database::editSet($setId, $repetitions, $measureUnit, $restTime);
-                header("Location: /workout?workout_id={$workoutId}#$exerciseName");
-                exit;
+                $this->utils->redirect("/workout", ['workout_id' => $workoutId], $exerciseName);
+            } else {
+                $this->utils->render400();
             }
         });
 
-        $router->map('POST', '/deleteSet', function () {
-            $workoutId = $_POST['workout_id'];
-            $exerciseName = $_POST['exercise_name'] ?? null;
-            $setId = $_POST['set_id'] ?? null;
+        $this->router->map('POST', '/deleteSet', function () {
+            $workoutId = $this->utils->getHttpQueryParam('workout_id');
+            $exerciseName = $this->utils->getHttpQueryParam('exercise_name');
+            $setId = $this->utils->getHttpQueryParam('set_id');
 
-            if ($workoutId && $setId) {
+            if ($this->utils->nullChecker([$workoutId, $exerciseName, $setId])) {
                 Database::deleteSet($setId);
-                header("Location: /workout?workout_id={$workoutId}#$exerciseName");
-                exit;
+                $this->utils->redirect("/workout", ['workout_id' => $workoutId], $exerciseName);
+            } else {
+                $this->utils->render400();
             }
 
         });
 
-        $router->map('POST', '/addExercise', function () {
-            $name = $_POST['exercise_name'] ?? null;
-            $workoutId = $_POST['workout_id'] ?? null;
+        $this->router->map('POST', '/addExercise', function () {
+            $exerciseName = $this->utils->getHttpQueryParam('exercise_name');
+            $workoutId = $this->utils->getHttpQueryParam('workout_id');
 
-            if ($name && $workoutId) {
-                Database::addExercise($name, $workoutId);
-                header("Location: /workout?workout_id={$workoutId}#$name");
-                exit;
+            if ($this->utils->nullChecker([$workoutId, $exerciseName])) {
+                Database::addExercise($exerciseName, $workoutId);
+                $this->utils->redirect("/workout", ['workout_id' => $workoutId], $exerciseName);
+            } else {
+                $this->utils->render400();
             }
         });
 
-        $router->map('POST', '/deleteExercise', function () {
-            $workoutId = $_POST['workout_id'] ?? null;
-            $exerciseId = $_POST['exercise_id'] ?? null;
+        $this->router->map('POST', '/deleteExercise', function () {
+            $workoutId = $this->utils->getHttpQueryParam('workout_id');
+            $exerciseId = $this->utils->getHttpQueryParam('exercise_id');
 
-            if ($workoutId && $exerciseId) {
+            if ($this->utils->nullChecker([$workoutId, $exerciseId])) {
                 Database::deleteExercise($exerciseId);
-                header("Location: /workout?workout_id={$workoutId}");
-                exit;
+                $this->utils->redirect("/workout", ['workout_id' => $workoutId]);
+            } else {
+                $this->utils->render400();
             }
         });
 
-        $router->map('POST', '/editExercise', function () {
-            $workoutId = $_POST['workout_id'] ?? null;
-            $exerciseId = $_POST['exercise_id'] ?? null;
-            $name = $_POST['exercise_name'] ?? null;
+        $this->router->map('POST', '/editExercise', function () {
+            $workoutId = $this->utils->getHttpQueryParam('workout_id');
+            $exerciseName = $this->utils->getHttpQueryParam('exercise_name');
+            $exerciseId = $this->utils->getHttpQueryParam('exercise_id');
 
-            if ($exerciseId && $name && $workoutId) {
-                Database::editExercise($exerciseId, $name);
-                header("Location: /workout?workout_id={$workoutId}#$name");
-                exit;
+            if ($this->utils->nullChecker([$workoutId, $exerciseName, $exerciseId])) {
+                Database::editExercise($exerciseId, $exerciseName);
+                $this->utils->redirect("/workout", ['workout_id' => $workoutId], $exerciseName);
+            } else {
+                $this->utils->render400();
             }
         });
 
-        $router->map('POST', '/api/workout/log', function () {
+        $this->router->map('POST', '/api/workout/log', function () {
             try {
                 $data = json_decode(file_get_contents('php://input'), true, 512, JSON_THROW_ON_ERROR);
 
                 $workoutId = $data['workout_id'] ?? null;
-                $duration  = $data['duration'] ?? null;
-                $workload  = $data['workload'] ?? null;
-                $summary  = $data['summary'] ?? null;
+                $duration = $data['duration'] ?? null;
+                $workload = $data['workload'] ?? null;
+                $summary = $data['summary'] ?? null;
 
-                if($workoutId !== null && $duration !== null && $workload !== null && $summary !== null) {
+                if ($this->utils->nullChecker([$workoutId, $duration, $workload, $summary])) {
                     Database::addLog($workoutId, $workload, $duration, $summary);
                     header('Content-Type: application/json');
                     echo json_encode(['status' => 'success'], JSON_THROW_ON_ERROR);
@@ -177,33 +193,20 @@ class Controller
                 echo json_encode(['status' => 'error', 'message' => 'Invalid input'], JSON_THROW_ON_ERROR);
                 exit;
 
-            } catch(Throwable $e) {
+            } catch (Throwable $e) {
                 header($_SERVER["SERVER_PROTOCOL"] . ' 500 Internal Server Error');
                 echo $e->getMessage();
                 exit;
             }
         });
 
-        $match = $router->match();
+        $match = $this->router->match();
 
         if ($match && is_callable($match['target'])) {
             call_user_func_array($match['target'], $match['params']);
         } else {
-            self::render404();
+            $this->utils->render404();
         }
-    }
-
-    private static function renderView(string $view, array $params = []): void
-    {
-        include_once __DIR__ . "/../view/parts/header.php";
-        include_once __DIR__ . '/../view/' . $view . '.php';
-        include_once __DIR__ . "/../view/parts/footer.php";
-    }
-
-    private static function render404(): void
-    {
-        header($_SERVER["SERVER_PROTOCOL"] . ' 404 Not Found');
-        echo "404 Not Found";
     }
 
 }
