@@ -7,11 +7,11 @@ use App\Database;
 use App\Utils;
 use Throwable;
 
-class Controller
+readonly class Controller
 {
     public function __construct(
-        private readonly Utils      $utils = new Utils(),
-        private readonly AltoRouter $router = new AltoRouter()
+        private Utils       $utils = new Utils(),
+        private AltoRouter  $router = new AltoRouter()
     )
     {
     }
