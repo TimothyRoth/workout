@@ -156,6 +156,7 @@ const proceed = () => {
 const next = () => {
     const button = workout.view.querySelector("#next");
     let finishWorkout = false;
+
     button.addEventListener("click", async () => {
             if(buttonDisabled) return;
 
