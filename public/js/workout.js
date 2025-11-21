@@ -4,8 +4,8 @@ let buttonDisabled = false;
 document.addEventListener("DOMContentLoaded", () => {
     editContainer();
     deleteAction();
-    initWorkoutSession();
     initAccordion();
+    initWorkoutSession();
 });
 
 const editContainer = () => {
@@ -62,19 +62,57 @@ const deleteAction = () => {
 const initWorkoutSession = () => {
     const button = document.querySelector(".startWorkout");
     const body = document.querySelector("body");
+
     if(button) {
         button.addEventListener("click", () => {
             body.classList.add("no-scroll");
-            workout.startTime = new Date().getTime();
-            loadWorkout();
-            startProgress(initView());
+            initWorkout();
+            initView()
+            startProgress();
         });
     }
 };
 
-const loadWorkout = () => {
+const cacheCurrentWorkoutData = () => {
+    localStorage.setItem(
+        "activeWorkout", JSON.stringify(workout)
+    )
+}
+
+const clearCache = () => {
+    localStorage.clear();
+}
+
+const loadCache = () => {
+    const strWorkout = localStorage.getItem("activeWorkout");
+    return JSON.parse(strWorkout) ?? null;
+}
+
+const initWorkout = () => {
     workout.id = document.querySelector("input[name='workout_id']").value;
+
+    //here we have to play with the cached workout.
+    const activeWorkout = loadCache();
+
+    if(activeWorkout !== null && activeWorkout.id === workout.id) {
+        const confirmContinueWorkout = confirm("Möchtest du das Workout fortsetzen?")
+
+        if(confirmContinueWorkout) {
+            workout = activeWorkout;
+            return;
+        }
+    }
+
+    parseWorkoutMetaFromDom();
+
+};
+
+const parseWorkoutMetaFromDom = () => {
     workout.name = document.querySelector("h3").innerText;
+    workout.startTime = new Date().getTime();
+    workout.exerciseIndex = 0;
+    workout.setIndex = 0;
+
     const exercises = document.querySelectorAll(".exercise");
     workout.exercises = [];
 
@@ -93,42 +131,36 @@ const loadWorkout = () => {
             });
         })
     });
-};
+}
 const initView = () => {
-    const view = document.querySelector(".workoutSessionView");
-    view.classList.add("active");
-    view.querySelector("#workoutName").innerText = workout.name;
-    view.querySelector("#startTime").innerText = new Date(workout.startTime).toLocaleString("de-DE");
-
-    return view;
+    workout.view = document.querySelector(".workoutSessionView");
+    workout.view.classList.add("active");
+    workout.view.querySelector("#workoutName").innerText = workout.name;
+    workout.view.querySelector("#startTime").innerText = new Date(workout.startTime).toLocaleString("de-DE");
+}
+const startProgress = () => {
+    proceed();
+    next();
 }
 
-const startProgress = (view) => {
-    let exerciseIndex = 0;
-    let setIndex = 0;
-
-    proceed(view);
-    next(view, exerciseIndex, setIndex);
+const proceed = () => {
+    workout.view.querySelector("#currentExercise").innerText = workout.exercises[workout.exerciseIndex].name;
+    workout.view.querySelector("#current").innerText = workout.setIndex + 1;
+    workout.view.querySelector("#exerciseIndex").innerText = workout.exerciseIndex + 1;
+    workout.view.querySelector("#totalExercises").innerText = workout.exercises.length;
+    workout.view.querySelector("#total").innerText = workout.exercises[workout.exerciseIndex].sets.length;
+    workout.view.querySelector("#repInput").value = workout.exercises[workout.exerciseIndex].sets[workout.setIndex].reps;
+    workout.view.querySelector("#measureUnitInput").value = workout.exercises[workout.exerciseIndex].sets[workout.setIndex].measureUnit;
 }
 
-const proceed = (view, exerciseIndex = 0, setIndex = 0) => {
-    view.querySelector("#currentExercise").innerText = workout.exercises[exerciseIndex].name;
-    view.querySelector("#current").innerText = setIndex + 1;
-    view.querySelector("#exerciseIndex").innerText = exerciseIndex + 1;
-    view.querySelector("#totalExercises").innerText = workout.exercises.length;
-    view.querySelector("#total").innerText = workout.exercises[exerciseIndex].sets.length;
-    view.querySelector("#repInput").value = workout.exercises[exerciseIndex].sets[setIndex].reps;
-    view.querySelector("#measureUnitInput").value = workout.exercises[exerciseIndex].sets[setIndex].measureUnit;
-}
-
-const next = (view, exerciseIndex, setIndex) => {
-    const button = view.querySelector("#next");
+const next = () => {
+    const button = workout.view.querySelector("#next");
     let finishWorkout = false;
     button.addEventListener("click", async () => {
             if(buttonDisabled) return;
 
             if(finishWorkout) {
-                showSummary(view);
+                showSummary(workout.view);
                 return;
             }
 
@@ -138,13 +170,13 @@ const next = (view, exerciseIndex, setIndex) => {
             addToWorkload(reps, measureUnit);
 
             addToSummary(
-                workout.exercises[exerciseIndex].name,
+                workout.exercises[workout.exerciseIndex].name,
                 reps, measureUnit,
-                parseInt(workout.exercises[exerciseIndex].sets[setIndex].breaktime
+                parseInt(workout.exercises[workout.exerciseIndex].sets[workout.setIndex].breaktime
                 ));
 
-            const lastExercise = exerciseIndex === workout.exercises.length - 1;
-            const lastSet = setIndex === workout.exercises[exerciseIndex].sets.length - 1;
+            const lastExercise = workout.exerciseIndex === workout.exercises.length - 1;
+            const lastSet = workout.setIndex === workout.exercises[workout.exerciseIndex].sets.length - 1;
 
             if (lastExercise && lastSet) {
                 button.innerText = "Zusammenfassung anzeigen";
@@ -152,17 +184,18 @@ const next = (view, exerciseIndex, setIndex) => {
                 return;
             }
 
-            setIndex++;
+            workout.setIndex++;
 
-            if(setIndex >= workout.exercises[exerciseIndex].sets.length) {
-                setIndex = 0;
-                exerciseIndex++;
+            if(workout.setIndex >= workout.exercises[workout.exerciseIndex].sets.length) {
+                workout.setIndex = 0;
+                workout.exerciseIndex++;
             }
 
-            proceed(view, exerciseIndex, setIndex);
+            proceed();
+            cacheCurrentWorkoutData();
 
-            const breakTime = parseInt(workout.exercises[exerciseIndex].sets[setIndex].breaktime)
-            await initBreak(view, breakTime);
+            const breakTime = parseInt(workout.exercises[workout.exerciseIndex].sets[workout.setIndex].breaktime)
+            await initBreak(breakTime);
 
         });
 }
@@ -185,7 +218,7 @@ const addToSummary = (exercise, reps, measureUnit, breakTime) => {
         workout.summary.log = "";
     }
 
-    workout.summary.log += `exercise=${exercise} reps=${reps} measureUnit=${measureUnit} breaktime=${breakTime} \n`;
+    workout.summary.log += `exercise=${exercise};reps=${reps};measureUnit=${measureUnit};breaktime=${breakTime} \n`;
 }
 
 const showSummary = (view) => {
@@ -208,14 +241,14 @@ const showSummary = (view) => {
     finishWorkoutButton.addEventListener("click", finishWorkout)
 };
 
-const initBreak = (view, seconds) => {
+const initBreak = (seconds) => {
     return new Promise((resolve) => {
-        const button = view.querySelector("#next");
+        const button = workout.view.querySelector("#next");
         const currentButtonText = button.innerText;
 
         buttonDisabled = true;
         button.classList.add("breaktime");
-        view.classList.add("breaktime");
+        workout.view.classList.add("breaktime");
 
         const start = Date.now();
         const end = start + seconds * 1000;
@@ -229,7 +262,7 @@ const initBreak = (view, seconds) => {
                 button.innerText = currentButtonText;
                 button.classList.remove("breaktime");
                 buttonDisabled = false;
-                view.classList.remove("breaktime");
+                workout.view.classList.remove("breaktime");
                 resolve();
                 return;
             }
@@ -258,6 +291,7 @@ const finishWorkout = async () => {
     });
 
     if(response.ok) {
+        clearCache();
         window.location.href = "/logs";
     } else {
         console.error(`Error: ${response.status} - ${response.statusText}`);
@@ -278,7 +312,7 @@ const parseSummary = () => {
     workout.summary.json = {};
 
     filtered.forEach((line) => {
-        const splitLine = line.split(" ");
+        const splitLine = line.split(";");
         const exercise = splitLine[0].split("=")[1];
         const reps = splitLine[1].split("=")[1];
         const measureUnit = splitLine[2].split("=")[1];
