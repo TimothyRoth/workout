@@ -22,7 +22,6 @@ class Database
                 // Create tables once (if not already created)
                 self::initializeSchema();
             } catch (PDOException $e) {
-                syslog(LOG_INFO, $e->getMessage();
                 die('Database connection failed: ' . $e->getMessage());
             }
         }
