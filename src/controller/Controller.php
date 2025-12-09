@@ -7,7 +7,7 @@ use App\Database;
 use App\Utils;
 use Throwable;
 
-readonly class Controller
+class Controller
 {
     public function __construct(
         private Utils       $utils = new Utils(),
