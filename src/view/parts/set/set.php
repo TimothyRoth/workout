@@ -3,7 +3,8 @@
     <tr>
         <th>Wh</th>
         <th>Eh</th>
-        <th>P</th>
+        <th>P(s)</th>
+        <th></th>
     </tr>
     </thead>
     <tbody>
@@ -15,7 +16,7 @@
             <td>
                 <div class="editButton" data-target="edit-set-<?= $set['id'] ?>">
                     <img class="icon edit-icon"
-                         src="/img/edit.png"
+                         src="/img/edit.svg"
                          alt="edit-icon"/>
                 </div>
             </td>

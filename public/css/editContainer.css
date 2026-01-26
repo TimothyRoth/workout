@@ -9,7 +9,16 @@
     width: 100vw;
     height: 100vh;
     transition: .3s ease-in-out;
-    background: #FACC15;
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+
+    input {
+        color: inherit;
+
+        &::placeholder {
+            color: inherit;
+        }
+    }
 
     &.active {
         transition: .3s ease-in-out;

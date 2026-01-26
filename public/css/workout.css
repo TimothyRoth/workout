@@ -1,11 +1,7 @@
-.addWorkout {
-    border-bottom: 1px solid #ccc;
-}
-
 .workouts {
     .workout {
         &:not(&:last-child) {
-            border-bottom: 1px solid #ccc;
+            border-bottom: 1px solid var(--color-text-muted);
         }
 
         a {

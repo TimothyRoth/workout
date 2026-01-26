@@ -1,12 +1,12 @@
 <div class="wrapper">
     <div class="singleWorkoutView">
-        <div class="flex gap-s align-center">
+        <div class="flex gap-10 align-center">
             <a class="backButton" href="/"><img class="icon back-icon"
-                                                src="/img/back.png"
+                                                src="/img/back.svg"
                                                 alt="back-icon"/></a>
             <h3 class=""><?= $params['workout']['name'] ?></h3>
             <div class="startWorkout ml-auto">
-                <img src="/img/start.png" alt="start-icon" class="icon start-icon"/>
+                <img src="/img/start.svg" alt="start-icon" class="icon start-icon"/>
             </div>
         </div>
         <form class="addExercise" method="POST" action="/addExercise">
@@ -16,7 +16,7 @@
             </label>
         </form>
         <?php if (count($params['exercises']) > 0) { ?>
-        <div class="exercises flex column gap-m">
+        <div class="exercises flex column gap-20">
             <?php foreach ($params['exercises'] as $exercise) {
                 include(__DIR__ . "/parts/exercise/exercise.php");
             } ?>

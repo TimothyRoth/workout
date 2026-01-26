@@ -1,7 +1,7 @@
 <div class="edit-container" id="edit-sets-<?= $exercise['id'] ?>">
     <div class="wrapper">
         <div class="close">
-            <img class="icon edit-icon" src="/img/close.png" alt="edit-icon"/>
+            <img class="icon edit-icon" src="/img/close.svg" alt="edit-icon"/>
         </div>
         <h3>Satz hinzufügen</h3>
         <form class="addSet" method="POST" action="/addSet">
@@ -9,7 +9,7 @@
                    value="<?= $params['workout']['id'] ?>">
             <input type="hidden" name="exercise_name" value="<?= $exercise['name'] ?>">
             <input type="hidden" name="exercise_id" value="<?= $exercise['id'] ?>">
-            <div class="flex column gap-m">
+            <div class="flex column gap-20">
                 <label>
                     <input type="number" name="amount" min="1" max="10" placeholder="Satzanzahl" required/>
                 </label>
@@ -22,7 +22,7 @@
                            required/>
                 </label>
                 <label>
-                    <input type="text" name="rest_time" placeholder="Pausenzeit"
+                    <input type="text" name="rest_time" placeholder="Pausenzeit (s)"
                            required/>
                 </label>
                 <input class="button addButton" type="submit" value="Satz hinzufügen">
@@ -34,11 +34,11 @@
 <div class="edit-container" id="edit-exercise-<?= $exercise['id'] ?>">
     <div class="wrapper">
         <div class="close">
-            <img class="icon edit-icon" src="/img/close.png" alt="edit-icon"/>
+            <img class="icon edit-icon" src="/img/close.svg" alt="edit-icon"/>
         </div>
-        <div class="inner flex column gap-m">
+        <div class="inner flex column gap-20">
             <h3>Übung bearbeiten</h3>
-            <form method="POST" action="/editExercise">
+            <form class="flex column gap-20" method="POST" action="/editExercise">
                 <input type="hidden" name="workout_id"
                        value="<?= $params['workout']['id'] ?>">
                 <input type="hidden" name="exercise_id" value="<?= $exercise['id'] ?>">
@@ -46,13 +46,14 @@
                     <input type="text" name="exercise_name"
                            value="<?= $exercise['name'] ?>">
                 </label>
-            </form>
-            <form method="POST" action="/deleteExercise">
-                <input type="hidden" name="exercise_id" value="<?= $exercise['id'] ?>">
-                <input type="hidden" name="workout_id"
-                       value="<?= $params['workout']['id'] ?>">
-                <input class="deleteButton button" type="submit" value="Übung Löschen">
+                <input class="button saveButton" type="submit" value="Änderungen speichern">
             </form>
         </div>
+        <form class="flex" method="POST" action="/deleteExercise">
+            <input type="hidden" name="exercise_id" value="<?= $exercise['id'] ?>">
+            <input type="hidden" name="workout_id"
+                   value="<?= $params['workout']['id'] ?>">
+            <input class="deleteButton button" type="submit" value="Übung Löschen">
+        </form>
     </div>
 </div>

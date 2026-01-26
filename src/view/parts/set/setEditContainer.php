@@ -1,17 +1,17 @@
 <div class="edit-container" id="edit-set-<?= $set['id'] ?>">
     <div class="wrapper">
         <div class="close">
-            <img class="icon edit-icon" src="/img/close.png" alt="edit-icon"/>
+            <img class="icon edit-icon" src="/img/close.svg" alt="edit-icon"/>
         </div>
-        <div class="inner flex column gap-m">
+        <div class="inner flex column gap-20">
             <h3>Satz bearbeiten</h3>
             <form method="POST" action="/editSet">
-                <div class="flex column gap-m">
+                <div class="flex column gap-20">
                     <input type="hidden" name="exercise_name" value="<?= $exercise['name'] ?>">
                     <input type="hidden" name="set_id" value="<?= $set['id'] ?>">
                     <input type="hidden" name="workout_id" value="<?= $params['workout']['id'] ?>">
 
-                    <div class="flex gap-m column">
+                    <div class="flex gap-20 column">
                         <label>
                             <input type="number" name="repetitions" placeholder="Wiederholungen" value="<?= $set['repetitions'] ?>" required/>
                         </label>
@@ -22,11 +22,11 @@
                             <input type="text" name="rest_time" placeholder="Pausenzeit" value="<?= $set['rest_time'] ?>" required/>
                         </label>
                         <input class="button saveButton" type="submit" value="Änderungen speichern">
-                    </div> <!-- closes .flex.gap-m.column -->
-                </div> <!-- ✅ this one was missing (closes .flex.column.gap-m inside form) -->
+                    </div>
+                </div>
             </form>
         </div>
-        <form method="POST" action="/deleteSet">
+        <form class="flex" method="POST" action="/deleteSet">
             <input type="hidden" name="exercise_name" value="<?= $exercise['name'] ?>">
             <input type="hidden" name="set_id" value="<?= $set['id'] ?>">
             <input type="hidden" name="workout_id" value="<?= $params['workout']['id'] ?>">

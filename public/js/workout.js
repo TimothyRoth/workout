@@ -26,11 +26,21 @@ const editContainer = () => {
                 }, {once: true})
 
                 const saveButton = container.querySelector(".saveButton");
-                if(saveButton && !saveButton.classList.contains("active")) {
+
+                if (saveButton && !saveButton.classList.contains("active")) {
                     const inputFields = container.querySelectorAll("input");
                     inputFields.forEach(input => {
+
+                        const previousValue = input.value;
+
                         input.addEventListener("change", () => {
-                            saveButton.classList.add("active");
+
+                            if (input.value !== previousValue) {
+                                saveButton.classList.add("active");
+                            } else {
+                                saveButton.classList.remove("active");
+                            }
+
                         })
                     })
                 }
@@ -63,7 +73,7 @@ const initWorkoutSession = () => {
     const button = document.querySelector(".startWorkout");
     const body = document.querySelector("body");
 
-    if(button) {
+    if (button) {
         button.addEventListener("click", () => {
             body.classList.add("no-scroll");
             initWorkout();
@@ -94,10 +104,10 @@ const initWorkout = () => {
     //here we have to play with the cached workout.
     const activeWorkout = loadCache();
 
-    if(activeWorkout !== null && activeWorkout.id === workout.id) {
+    if (activeWorkout !== null && activeWorkout.id === workout.id) {
         const confirmContinueWorkout = confirm("Möchtest du das Workout fortsetzen?")
 
-        if(confirmContinueWorkout) {
+        if (confirmContinueWorkout) {
             workout = activeWorkout;
             return;
         }
@@ -158,52 +168,52 @@ const next = () => {
     let finishWorkout = false;
 
     button.addEventListener("click", async () => {
-            if(buttonDisabled) return;
+        if (buttonDisabled) return;
 
-            if(finishWorkout) {
-                showSummary(workout.view);
-                return;
-            }
+        if (finishWorkout) {
+            showSummary(workout.view);
+            return;
+        }
 
-            const reps = document.querySelector("#repInput").value;
-            const measureUnit =  document.querySelector("#measureUnitInput").value;
+        const reps = document.querySelector("#repInput").value;
+        const measureUnit = document.querySelector("#measureUnitInput").value;
 
-            addToWorkload(reps, measureUnit);
+        addToWorkload(reps, measureUnit);
 
-            addToSummary(
-                workout.exercises[workout.exerciseIndex].name,
-                reps, measureUnit,
-                parseInt(workout.exercises[workout.exerciseIndex].sets[workout.setIndex].breaktime
-                ));
+        addToSummary(
+            workout.exercises[workout.exerciseIndex].name,
+            reps, measureUnit,
+            parseInt(workout.exercises[workout.exerciseIndex].sets[workout.setIndex].breaktime
+            ));
 
-            const lastExercise = workout.exerciseIndex === workout.exercises.length - 1;
-            const lastSet = workout.setIndex === workout.exercises[workout.exerciseIndex].sets.length - 1;
+        const lastExercise = workout.exerciseIndex === workout.exercises.length - 1;
+        const lastSet = workout.setIndex === workout.exercises[workout.exerciseIndex].sets.length - 1;
 
-            if (lastExercise && lastSet) {
-                button.innerText = "Zusammenfassung anzeigen";
-                finishWorkout = true;
-                return;
-            }
+        if (lastExercise && lastSet) {
+            button.innerText = "Zusammenfassung anzeigen";
+            finishWorkout = true;
+            return;
+        }
 
-            workout.setIndex++;
+        workout.setIndex++;
 
-            if(workout.setIndex >= workout.exercises[workout.exerciseIndex].sets.length) {
-                workout.setIndex = 0;
-                workout.exerciseIndex++;
-            }
+        if (workout.setIndex >= workout.exercises[workout.exerciseIndex].sets.length) {
+            workout.setIndex = 0;
+            workout.exerciseIndex++;
+        }
 
-            proceed();
-            cacheCurrentWorkoutData();
+        proceed();
+        cacheCurrentWorkoutData();
 
-            const breakTime = parseInt(workout.exercises[workout.exerciseIndex].sets[workout.setIndex].breaktime)
-            await initBreak(breakTime);
+        const breakTime = parseInt(workout.exercises[workout.exerciseIndex].sets[workout.setIndex].breaktime)
+        await initBreak(breakTime);
 
-        });
+    });
 }
 
 const addToWorkload = (reps, measureUnit) => {
 
-    if(!workout.workload) {
+    if (!workout.workload) {
         workout.workload = 0;
     }
 
@@ -214,7 +224,7 @@ const addToWorkload = (reps, measureUnit) => {
 
 const addToSummary = (exercise, reps, measureUnit, breakTime) => {
 
-    if(!workout.summary) {
+    if (!workout.summary) {
         workout.summary = {};
         workout.summary.log = "";
     }
@@ -291,7 +301,7 @@ const finishWorkout = async () => {
         }),
     });
 
-    if(response.ok) {
+    if (response.ok) {
         clearCache();
         window.location.href = "/logs";
     } else {
@@ -319,10 +329,10 @@ const parseSummary = () => {
         const measureUnit = splitLine[2].split("=")[1];
         const breaktime = splitLine[3].split("=")[1];
 
-        if(!exercises.includes(exercise)) {
+        if (!exercises.includes(exercise)) {
 
-            if(exercises.length > 0) workout.summary.view += "</div>";
-            if(jsonResponse.length > 0) jsonIndex++;
+            if (exercises.length > 0) workout.summary.view += "</div>";
+            if (jsonResponse.length > 0) jsonIndex++;
 
             workout.summary.view += "<div>";
             workout.summary.view += `<h5>Übung: ${exercise}</h5>`;
@@ -356,16 +366,16 @@ const parseSummary = () => {
 const initAccordion = () => {
     const accordions = document.querySelectorAll(".trigger-accordion");
     accordions.forEach(accordion => {
-       const trigger = accordion.querySelector(".trigger");
-       const container = accordion.querySelector(".trigger-container");
+        const trigger = accordion.querySelector(".trigger");
+        const container = accordion.querySelector(".trigger-container");
 
-       trigger.addEventListener("click", () => {
-           if(container.classList.contains("active")) {
-               container.classList.remove("active");
-               return;
-           }
+        trigger.addEventListener("click", () => {
+            if (container.classList.contains("active")) {
+                container.classList.remove("active");
+                return;
+            }
 
-           container.classList.add("active");
-       })
+            container.classList.add("active");
+        })
     });
 }

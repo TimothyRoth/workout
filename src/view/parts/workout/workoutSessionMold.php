@@ -1,28 +1,41 @@
 <div class="workoutSessionView">
     <div class="wrapper">
-        <div id="metaData">
-            <h2 id="workoutName"></h2>
-            <p>Workout begonnen um: <span id="startTime"></span></p>
+        <div class="flex column gap-20" id="metaData">
+            <h2 class="m-0 font-weight-500" id="workoutName"></h2>
+            <p class="m-0">Workout begonnen um: <span class="font-weight-300" id="startTime"></span></p>
         </div>
-        <div class="progress">
-            <h3><b><span id="currentExercise"></span>(<span id="exerciseIndex"></span>/<span id="totalExercises"></span>)</b></h3>
-            <div class="currentSet">
-                <p><b>Satz <span id="current"></span>/<span id="total"></span></b></p>
-                <div class="meta">
-                    <label class="flex gap-s align-center" for="repInput"><b>Wiederholungen</b><input name="reps" id="repInput" type="text" /></label>
-                    <label class="flex gap-s align-center" for="measureUnitInput"><b>Einheit</b><input name="measureUnit" id="measureUnitInput" type="text" /></label>
+        <div class="progress flex column gap-20 mt-20">
+            <h3 class="m-0">
+                <span id="currentExercise"></span>
+                <span class="font-weight-300 font-size-16 relative bottom-3">(<span id="exerciseIndex"></span>/<span
+                            id="totalExercises"></span>)</span>
+            </h3>
+            <div class="currentSet flex column gap-20">
+                <h3 class="m-0">
+                    <span>Satz</span>
+                    <span class="font-weight-300 font-size-16 relative bottom-3">(<span id="current"></span>/<span
+                                id="total"></span>)</span>
+                </h3>
+                <div class="meta flex column gap-20">
+                    <label class="flex gap-5 align-center" for="repInput"><span
+                                class="font-size-20 font-weight-400">Wiederholungen:</span><input
+                                class="font-size-18 font-weight-300" name="reps"
+                                id="repInput"
+                                type="text"/></label>
+                    <label class="flex gap-5 align-center font-weight-400" for="measureUnitInput">Einheit:<input
+                                class="font-weight-300 font-size-18" name="measureUnit" id="measureUnitInput" type="text"/></label>
                 </div>
             </div>
-            <div class="button mt-2" id="next">Weiter</div>
+            <div class="button mt-20" id="next">Weiter</div>
         </div>
-        <div class="summary">
-            <p><b>Dauer:</b> <span id="duration"></span></p>
-            <p><b>Workload:</b> <span id="workload"></span></p>
+        <div class="summary flex column gap-20 mt-20">
+            <h3 class="m-0 font-weight-400 font-size-20">Dauer: <span id="duration"></span></h3>
+            <h3 class="m-0 font-weight-400 font-size-20">Workload: <span id="workload"></span></h3>
             <div class="trigger-accordion">
-                <h3 class="trigger">Show Log</h3>
+                <h3 class="trigger m-0 font-weight-400 font-size-20">Show Log</h3>
                 <div class="trigger-container" id="workout_summary"></div>
             </div>
-            <div class="button finishButton mt-2">Speichern und beenden</div>
+            <div class="button finishButton mt-20">Speichern und beenden</div>
         </div>
     </div>
 </div>

@@ -2,7 +2,7 @@
     <div class="top">
         <h3 class="exerciseName"><?= $exercise['name'] ?></h3>
         <div class="editButton" data-target="edit-exercise-<?= $exercise['id'] ?>"><img
-                    class="icon edit-icon" src="/img/edit.png" alt="edit-icon"/></div>
+                    class="icon edit-icon" src="/img/edit.svg" alt="edit-icon"/></div>
     </div>
     <div class="sets">
         <?php
@@ -15,7 +15,7 @@
         }
         ?>
 
-        <div class="button editButton" data-target="edit-sets-<?= $exercise['id'] ?>">+</div>
+        <div class="button editButton" data-target="edit-sets-<?= $exercise['id'] ?>">Satz hinzufügen</div>
 
         <?php include(__DIR__ . "/exerciseEditContainer.php"); ?>
     </div>

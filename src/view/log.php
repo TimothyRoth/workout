@@ -1,5 +1,5 @@
 <div class="wrapper">
-    <a class="mt-2 inline-block" href="/">Zurück</a>
+    <a class="mt-20 inline-block" href="/">Zurück</a>
     <?php if (empty($params)) { ?>
         <h2>Keine Einträge gefunden.</h2>
     <?php } else { ?>
@@ -33,7 +33,7 @@
                 }
               ?>
 
-                <div class="logEntry pt-2">
+                <div class="logEntry pt-20">
                     <p><b>Workout: </b><?= htmlspecialchars($log['workout_name']) ?></p>
                     <p><b>Datum: </b><?= htmlspecialchars($log['created_at']) ?></p>
                     <p><b>Dauer: </b><?= htmlspecialchars($log['duration']) ?> Minuten</p>
@@ -58,7 +58,7 @@
                         </div>
                     </div>
                     <p><b>Workload: </b><?= htmlspecialchars($current) ?></p>
-                    <div class="flex gap-s column text-center">
+                    <div class="flex gap-10 column text-center">
                         <span class="<?= $currentToMaxClass ?>">
                         <?php if ($deltaMax >= 0 && $current === $previous) {
                             echo "+{$deltaMax}% vom Bestwert";

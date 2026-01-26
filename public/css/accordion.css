@@ -3,7 +3,7 @@
     .trigger {
         margin: 0;
         cursor: pointer;
-        font-weight: 600;
+        font-weight: 500;
     }
     .trigger-container {
         display: flex;

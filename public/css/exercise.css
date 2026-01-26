@@ -12,7 +12,6 @@
 .exercise {
     .top {
         h3 {
-            color: #000;
             font-weight: 500;
         }
     }
@@ -24,26 +23,36 @@
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            background: #fff;
+            background: var(--color-bg);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 
+            .editButton {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
             thead {
-                background: #FACC15; /* gold header */
-                font-weight: 700;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
+                background: var(--color-accent-soft);
+                color: var(--color-text-muted);
+                font-weight: 500;
+                letter-spacing: 1px;
+
+                tr th {
+                    color: inherit;
+                }
             }
 
             tbody {
-                background: #F9FAFB; /* soft neutral background */
-                color: #1E293B;
-                font-weight: 500;
+                background: var(--color-bg);
+                color: var(--color-text-muted);
+                font-weight: 400;
             }
 
             th,
             td {
                 width: 20%;
-                border: 1px solid #E5E7EB; /* light gray border */
+                border: 1px solid var(--color-text-muted);
                 padding: 2px 8px;
                 text-align: left;
                 white-space: nowrap;
@@ -60,12 +69,7 @@
             }
 
             tr:nth-child(even) {
-                background-color: #fefce8; /* subtle yellow tint */
-            }
-
-            tr:hover {
-                background-color: #fef9c3; /* slightly brighter hover */
-                transition: background 0.2s ease-in-out;
+                background-color: var(--color-accent-soft);
             }
 
         }

@@ -8,5 +8,5 @@
     <script src="/js/workout.js"></script>
 </head>
 <body>
-<main class="pb-2">
+<main class="pb-20">
 
