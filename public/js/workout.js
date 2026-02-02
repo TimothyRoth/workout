@@ -69,16 +69,37 @@ const deleteAction = () => {
         });
     });
 };
+
+let wakeLock = null;
+
+const requestWakeLock = async () => {
+    if (!('wakeLock' in navigator)) return
+    if (wakeLock !== null) return;
+
+    try {
+        wakeLock = await navigator.wakeLock.request('screen')
+    } catch {
+        console.info('No wakelock available on this browser.')
+    }
+}
+
 const initWorkoutSession = () => {
     const button = document.querySelector(".startWorkout");
     const body = document.querySelector("body");
 
     if (button) {
-        button.addEventListener("click", () => {
+        button.addEventListener("click", async () => {
             body.classList.add("no-scroll");
             initWorkout();
             initView()
             startProgress();
+            await requestWakeLock();
+
+            document.addEventListener('visibilitychange', async () => {
+                if (document.visibilityState === 'visible') {
+                    await requestWakeLock();
+                }
+            })
         });
     }
 };
