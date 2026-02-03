@@ -21,7 +21,7 @@
             transition: .3s ease-in-out;
             opacity: 1;
             z-index: 1;
-            max-height: 150px;
+            max-height: 250px;
         }
 
         h5 {
@@ -45,6 +45,14 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+        }
+    }
+}
+
+.logEntry {
+    .trigger-container {
+        &.active {
+            max-height: 500px;
         }
     }
 }
