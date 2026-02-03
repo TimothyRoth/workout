@@ -12,7 +12,7 @@
         <form class="addExercise" method="POST" action="/addExercise">
             <label>
                 <input type="hidden" name="workout_id" value="<?= $params['workout']['id'] ?>">
-                <input name="exercise_name" placeholder="Neue Übung" type="text" required>
+                <input class="no-border no-padding no-radius" name="exercise_name" placeholder="Neue Übung" type="text" required>
             </label>
         </form>
         <?php if (count($params['exercises']) > 0) { ?>

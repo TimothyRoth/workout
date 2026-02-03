@@ -1,9 +1,19 @@
 <div class="wrapper">
-    <a class="mt-20 inline-block" href="/">Zurück</a>
+
     <?php if (empty($params)) { ?>
-        <h2>Keine Einträge gefunden.</h2>
+        <div class="flex gap-10 align-center mt-20">
+            <a class="flex" href="/">
+                <img alt="back" src="/img/back.svg"/>
+            </a>
+            <h2 class="m-0">Keine Einträge gefunden.</h2>
+        </div>
     <?php } else { ?>
-        <h2>Logs</h2>
+        <div class="flex gap-10 align-center mt-20">
+            <a class="flex" href="/">
+                <img alt="back" src="/img/back.svg"/>
+            </a>
+            <h2 class="m-0">Logs</h2>
+        </div>
         <div class="entries">
             <?php foreach ($params as $log) {
 
@@ -24,40 +34,47 @@
                 }
 
 
-                if($previous !== null) {
-                    if($current > $previous) {
+                if ($previous !== null) {
+                    if ($current > $previous) {
                         $currentToPrevClass = "high";
                     } elseif ($current < $previous) {
                         $currentToPrevClass = "low";
                     }
                 }
-              ?>
+                ?>
 
                 <div class="logEntry pt-20">
                     <p><b>Workout: </b><?= htmlspecialchars($log['workout_name']) ?></p>
                     <p><b>Datum: </b><?= htmlspecialchars($log['created_at']) ?></p>
                     <p><b>Dauer: </b><?= htmlspecialchars($log['duration']) ?> Minuten</p>
-                    <div class="trigger-accordion">
-                        <p class="trigger">Show Log</p>
-                        <div class="trigger-container" id="workout_summary">
-                            <?php $exercises = json_decode($log['workout_summary'], true)["exercises"];
-                                foreach ($exercises as $exercise) { ?>
-                                    <div>
-                                        <h5>Übung: <?= $exercise['name'] ?></h5>
-                                        <?php foreach ($exercise['sets'] as $index => $set) { ?>
+
+                    <?php $logs = json_decode($log['workout_summary'], true, 512, JSON_THROW_ON_ERROR)["exercises"];
+                    $logSize = count($logs);
+                    if ($logSize > 0) { ?>
+                        <div class="trigger-accordion">
+                            <p class="trigger pb-20">Show Log</p>
+                            <div class="trigger-container" id="workout_summary">
+
+                                <?php foreach ($logs as $i => $exercise) { ?>
+                                    <div <?php if ($i + 1 === $logSize) {
+                                        echo "class='mb-20'";
+                                    } ?>>
+                                        <h5><?= $exercise['name'] ?></h5>
+                                        <?php foreach ($exercise['sets'] as $j => $set) { ?>
                                             <div>
-                                                <p><b><?= $index + 1 ?>. Satz</b></p>
+                                                <p><b><?= $j + 1 ?>. Satz</b></p>
                                                 <p><b>Wiederholungen:</b> <?= $set['reps'] ?></p>
                                                 <p><b>Einheit:</b> <?= $set['measureUnit'] ?></p>
                                                 <p><b>Pause:</b> <?= $set['breaktime'] ?></p>
                                             </div>
                                         <?php } ?>
                                     </div>
-                                <?php }
-                            ?>
+                                <?php } ?>
+                            </div>
                         </div>
-                    </div>
-                    <p><b>Workload: </b><?= htmlspecialchars($current) ?></p>
+                    <?php } ?>
+
+                    <p class="mt-0"><b>Workload: </b><?= htmlspecialchars($current) ?></p>
                     <div class="flex gap-10 column text-center">
                         <span class="<?= $currentToMaxClass ?>">
                         <?php if ($deltaMax >= 0 && $current === $previous) {

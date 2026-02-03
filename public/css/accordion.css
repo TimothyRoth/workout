@@ -1,11 +1,12 @@
 .trigger-accordion {
-    overflow: hidden;
     .trigger {
         margin: 0;
         cursor: pointer;
         font-weight: 500;
     }
+
     .trigger-container {
+        overflow: hidden;
         display: flex;
         flex-direction: column;
         gap: 20px;
@@ -13,12 +14,28 @@
         opacity: 0;
         z-index: -1;
         transition: .3s ease-in-out;
+
         &.active {
+            padding: 0 10px;
+            overflow: auto;
             transition: .3s ease-in-out;
             opacity: 1;
             z-index: 1;
-            max-height: 5000px;
+            max-height: 150px;
         }
+
+        h5 {
+            font-size: 18px;
+
+            &:not(&:first-of-type) {
+                margin-top: 20px;
+            }
+        }
+
+        p {
+            font-size: 12px;
+        }
+
         div > * {
             margin: 0;
             padding: 0;
@@ -28,24 +45,6 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-        }
-    }
-
-    #workout_summary {
-        overflow: hidden;
-        &.active {
-            padding: 20px;
-        }
-
-        h5 {
-            font-size: 18px;
-            &:not(&:first-of-type) {
-                margin-top: 20px;
-            }
-        }
-
-        p {
-            font-size: 12px;
         }
     }
 }

@@ -15,7 +15,9 @@
         }
         ?>
 
-        <div class="button editButton" data-target="edit-sets-<?= $exercise['id'] ?>">Satz hinzufügen</div>
+        <div class="editButton addButton flex justify-center mt-20" data-target="edit-sets-<?= $exercise['id'] ?>">
+            <img src="/img/add.svg" alt="add" />
+        </div>
 
         <?php include(__DIR__ . "/exerciseEditContainer.php"); ?>
     </div>

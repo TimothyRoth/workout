@@ -33,9 +33,5 @@
             overflow: auto;
             max-height: 80vh;
         }
-
-        input:not(input[type="submit"], input[type="image"]) {
-            width: 100%;
-        }
     }
 }

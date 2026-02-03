@@ -89,8 +89,15 @@ const initWorkoutSession = () => {
 
     if (button) {
         button.addEventListener("click", async () => {
+
+            const {error, message} = initWorkout();
+
+            if(error) {
+                alert(message);
+                return;
+            }
+
             body.classList.add("no-scroll");
-            initWorkout();
             initView()
             startProgress();
             await requestWakeLock();
@@ -130,39 +137,63 @@ const initWorkout = () => {
 
         if (confirmContinueWorkout) {
             workout = activeWorkout;
-            return;
+            return {
+                error: false
+            };
         }
     }
 
-    parseWorkoutMetaFromDom();
+    return parseWorkoutMetaFromDom();
 
 };
 
 const parseWorkoutMetaFromDom = () => {
     workout.name = document.querySelector("h3").innerText;
-    workout.startTime = new Date().getTime();
+    workout.startTime = Date.now();
     workout.exerciseIndex = 0;
     workout.setIndex = 0;
 
     const exercises = document.querySelectorAll(".exercise");
+
+    if (exercises.length === 0) {
+        return {
+            error: true,
+            message: "Bitte füge dem Workout mindestens eine Übung hinzu bevor du es startest."
+        };
+    }
+
     workout.exercises = [];
 
-    exercises.forEach((exercise, index) => {
-        workout.exercises.push({
-            name: exercise.querySelector(".exerciseName").innerText,
-            sets: []
-        });
+    for (let [index, exercise] of [...exercises].entries()) {
 
         const sets = exercise.querySelectorAll("table tbody tr");
-        sets.forEach((set) => {
-            workout.exercises[index].sets.push({
+
+        if (sets.length === 0) {
+            return {
+                error: true,
+                message: "Bitte füge jeder Übung mindestens einen Satz hinzu bevor du das Workout startest."
+            };
+        }
+
+        const exerciseData = {
+            name: exercise.querySelector(".exerciseName").innerText,
+            sets: []
+        };
+
+        for (let set of sets) {
+            exerciseData.sets.push({
                 reps: set.querySelectorAll("td")[0].innerText,
                 measureUnit: set.querySelectorAll("td")[1].innerText,
                 breaktime: set.querySelectorAll("td")[2].innerText,
             });
-        })
-    });
-}
+        }
+
+        workout.exercises.push(exerciseData);
+    }
+
+    return { error: false };
+};
+
 const initView = () => {
     workout.view = document.querySelector(".workoutSessionView");
     workout.view.classList.add("active");
@@ -212,6 +243,7 @@ const next = () => {
 
         if (lastExercise && lastSet) {
             button.innerText = "Zusammenfassung anzeigen";
+            button.classList.add("summaryButton");
             finishWorkout = true;
             return;
         }
@@ -276,7 +308,7 @@ const showSummary = (view) => {
 const initBreak = (seconds) => {
     return new Promise((resolve) => {
         const button = workout.view.querySelector("#next");
-        const currentButtonText = button.innerText;
+        const currentButtonHtml = button.innerHTML;
 
         buttonDisabled = true;
         button.classList.add("breaktime");
@@ -291,7 +323,7 @@ const initBreak = (seconds) => {
 
             if (remaining <= 0) {
                 // end reached
-                button.innerText = currentButtonText;
+                button.innerHTML = currentButtonHtml;
                 button.classList.remove("breaktime");
                 buttonDisabled = false;
                 workout.view.classList.remove("breaktime");
@@ -356,7 +388,7 @@ const parseSummary = () => {
             if (jsonResponse.length > 0) jsonIndex++;
 
             workout.summary.view += "<div>";
-            workout.summary.view += `<h5>Übung: ${exercise}</h5>`;
+            workout.summary.view += `<h5>${exercise}</h5>`;
             exercises.push(exercise);
 
             jsonResponse.push({
@@ -393,10 +425,12 @@ const initAccordion = () => {
         trigger.addEventListener("click", () => {
             if (container.classList.contains("active")) {
                 container.classList.remove("active");
+                accordion.classList.remove("active");
                 return;
             }
 
             container.classList.add("active");
+            accordion.classList.add("active");
         })
     });
 }
