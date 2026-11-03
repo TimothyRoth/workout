@@ -46,6 +46,9 @@ function icon(string $name, string $class = ''): string
         'trash'   => '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/>',
         'history' => '<path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/>',
         'timer'   => '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/>',
+        'up'      => '<path d="M18 15l-6-6-6 6"/>',
+        'down'    => '<path d="M6 9l6 6 6-6"/>',
+        'copy'    => '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
     ];
 
     $classes = trim('icon ' . $class);

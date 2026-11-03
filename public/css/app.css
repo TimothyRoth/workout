@@ -515,8 +515,18 @@ select.input {
     overflow-wrap: anywhere;
 }
 
-.exercise .btn {
+.exercise-actions {
+    display: flex;
+    gap: 8px;
     margin-top: 12px;
+}
+
+.exercise-actions .btn-block {
+    flex: 1;
+}
+
+.exercise-actions .btn:not(.btn-block) {
+    padding: 0 14px;
 }
 
 /* --------------------------------------------------------------------------
@@ -625,6 +635,36 @@ select.input {
     font-weight: 600;
 }
 
+.disclosure-nested {
+    margin-top: 6px;
+    padding-top: 0;
+    border-top: 0;
+}
+
+.disclosure-nested summary {
+    min-height: 36px;
+    font-size: 13px;
+}
+
+.sets.history td {
+    font-size: 13px;
+}
+
+.sets.history .num {
+    width: 64px;
+    white-space: nowrap;
+}
+
+.sets.history .volume {
+    width: 56px;
+    text-align: right;
+    color: var(--muted);
+}
+
+.sets.history tr.is-current td {
+    color: var(--accent);
+}
+
 /* --------------------------------------------------------------------------
    Bottom sheet (native <dialog>)
    -------------------------------------------------------------------------- */
@@ -682,6 +722,30 @@ select.input {
     padding: 8px 22px calc(22px + var(--safe-bottom));
 }
 
+.sheet-actions {
+    display: flex;
+    gap: 8px;
+    padding: 0 22px 8px;
+}
+
+.sheet-actions form {
+    flex: 1;
+}
+
+.sheet-actions form:not(.grow) {
+    flex: 0 0 auto;
+}
+
+.sheet-actions form:not(.grow) .btn {
+    min-width: 52px;
+    padding: 0 12px;
+}
+
+.sheet-actions form:only-child,
+.sheet-actions form.grow {
+    flex: 1;
+}
+
 /* --------------------------------------------------------------------------
    Training session (full-screen overlay)
    -------------------------------------------------------------------------- */
@@ -695,86 +759,187 @@ select.input {
     -webkit-overflow-scrolling: touch;
 }
 
-.session .topbar {
-    margin-bottom: 8px;
+.session-shell {
+    padding-bottom: calc(120px + var(--safe-bottom));
 }
 
-.session-stage,
-.session-summary {
+.session-header {
+    position: sticky;
+    top: 0;
+    z-index: 5;
     display: flex;
-    flex-direction: column;
-    gap: 22px;
-    padding-top: 8px;
+    align-items: center;
+    gap: 6px;
+    min-height: 64px;
+    margin: 0 -16px;
+    padding: 10px 10px 6px;
+    background: var(--bg);
 }
 
-.eyebrow {
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-    color: var(--muted);
-}
-
-.session-exercise {
-    font-size: 30px;
-    font-weight: 700;
-    letter-spacing: -.02em;
-    line-height: 1.15;
-    overflow-wrap: anywhere;
-}
-
-.session-set {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-}
-
-.session-set b {
-    font-size: 40px;
-    font-weight: 700;
-    line-height: 1;
+.session-header .hint {
     font-variant-numeric: tabular-nums;
 }
 
-.session-set > span {
-    color: var(--muted);
-    font-size: 15px;
-}
-
-.btn-next {
-    position: relative;
-    overflow: hidden;
-}
-
-.btn-next.is-break {
+.progress-bar {
+    position: sticky;
+    top: 64px;
+    z-index: 5;
+    height: 4px;
+    margin: 0 -16px 16px;
     background: var(--surface-2);
-    color: var(--text);
-    cursor: default;
-    pointer-events: none;
 }
 
-.btn-next.is-break::before {
-    content: "";
+.progress-bar-fill {
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    transition: width .3s;
+}
+
+.session-list {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    margin-bottom: 20px;
+}
+
+.session-exercise-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+    padding: 0 4px;
+}
+
+.session-exercise-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.set-row {
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 6px 12px 6px 8px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.set-row + .set-row {
+    margin-top: 2px;
+}
+
+.set-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.set-plan {
+    font-weight: 500;
+}
+
+.set-last {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.set-row.is-done .set-num {
+    background: var(--success-soft);
+    color: var(--success);
+}
+
+.set-row.is-done .set-plan {
+    color: var(--muted);
+}
+
+.set-row.is-current {
+    background: var(--surface);
+    border-color: var(--accent);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.set-row.is-current .set-num {
+    background: var(--accent);
+    color: var(--accent-contrast);
+}
+
+.set-current {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 8px;
+    padding: 14px 12px 12px;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-top: 0;
+    border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.rest-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    overflow: hidden;
+    background: var(--surface-2);
+    border-top: 1px solid var(--border);
+    padding-bottom: var(--safe-bottom);
+}
+
+.rest-bar-fill {
     position: absolute;
     inset: 0;
-    width: calc(var(--progress, 0) * 100%);
+    width: 0;
     background: var(--accent-soft);
     transition: width .25s linear;
 }
 
-.btn-next > * {
+.rest-bar-content {
     position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 10px 16px;
 }
 
-.session-summary h2 {
-    font-size: 28px;
+.rest-bar-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.rest-bar-content b {
+    flex: 1;
+    font-size: 26px;
     font-weight: 700;
-    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
 }
 
-.session-summary .disclosure {
-    border-top: 0;
-    margin-top: 0;
+.rest-bar-content .btn {
+    min-height: 40px;
+    padding: 0 14px;
+    font-size: 14px;
 }
 
 /* --------------------------------------------------------------------------

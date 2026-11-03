@@ -22,6 +22,22 @@
         ?>
         <button class="btn btn-primary btn-block" type="submit">Speichern</button>
     </form>
+    <div class="sheet-actions">
+        <form method="POST" action="/moveSet">
+            <input type="hidden" name="set_id" value="<?= e($set['id']) ?>">
+            <input type="hidden" name="direction" value="up">
+            <button class="btn btn-ghost btn-block" type="submit" aria-label="Nach oben"><?= icon('up', 'icon-sm') ?></button>
+        </form>
+        <form method="POST" action="/moveSet">
+            <input type="hidden" name="set_id" value="<?= e($set['id']) ?>">
+            <input type="hidden" name="direction" value="down">
+            <button class="btn btn-ghost btn-block" type="submit" aria-label="Nach unten"><?= icon('down', 'icon-sm') ?></button>
+        </form>
+        <form method="POST" action="/duplicateSet" class="grow">
+            <input type="hidden" name="set_id" value="<?= e($set['id']) ?>">
+            <button class="btn btn-ghost btn-block" type="submit"><?= icon('copy', 'icon-sm') ?> Satz kopieren</button>
+        </form>
+    </div>
     <form class="sheet-footer" method="POST" action="/deleteSet" data-confirm="Diesen Satz löschen?">
         <input type="hidden" name="set_id" value="<?= e($set['id']) ?>">
         <button class="btn btn-danger btn-block" type="submit"><?= icon('trash', 'icon-sm') ?> Satz löschen</button>

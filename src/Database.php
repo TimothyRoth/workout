@@ -7,7 +7,7 @@ use RuntimeException;
 
 class Database
 {
-    private const SCHEMA_VERSION = 2;
+    private const SCHEMA_VERSION = 3;
 
     private static ?PDO $connection = null;
 
@@ -58,6 +58,9 @@ class Database
             }
             if ($version < 2) {
                 self::migrateToV2();
+            }
+            if ($version < 3) {
+                self::migrateToV3();
             }
             $db->exec('PRAGMA user_version = ' . self::SCHEMA_VERSION);
             $db->commit();
@@ -181,6 +184,11 @@ class Database
 
         foreach ($db->query("SELECT * FROM sets ORDER BY id") as $row) {
             [$unit, $load] = Unit::fromLegacy((string)($row['measure_unit'] ?? ''));
+            // v2 had no minutes yet; v3 widens the constraint and keeps the value.
+            if ($unit === Unit::Minutes) {
+                $unit = Unit::Seconds;
+                $load = $load === null ? null : $load * 60;
+            }
             $insert->execute([
                 ':id' => $row['id'],
                 ':exercise_id' => $row['exercise_id'],
@@ -197,6 +205,126 @@ class Database
         $db->exec("DROP TABLE sets");
         $db->exec("ALTER TABLE sets_v2 RENAME TO sets");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_sets_exercise ON sets(exercise_id, position)");
+    }
+
+    /**
+     * v3: minutes as a unit (sets rebuilt for the wider CHECK), and logged
+     * sets stored in logExercises/logSets instead of a JSON summary blob,
+     * so last-time values and per-exercise history can be queried.
+     */
+    private static function migrateToV3(): void
+    {
+        $db = self::$connection;
+        $units = "'" . implode("', '", Unit::values()) . "'";
+
+        // --- sets: widen the unit constraint ---------------------------
+        $db->exec("
+            CREATE TABLE sets_v3 (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                exercise_id INTEGER NOT NULL,
+                repetitions INTEGER NOT NULL DEFAULT 0,
+                unit TEXT NOT NULL DEFAULT 'kg' CHECK (unit IN ($units)),
+                load REAL,
+                rest_time INTEGER NOT NULL DEFAULT 0,
+                position INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
+            )
+        ");
+        $db->exec("
+            INSERT INTO sets_v3(id, exercise_id, repetitions, unit, load, rest_time, position, created_at, updated_at)
+            SELECT id, exercise_id, repetitions, unit, load, rest_time, position, created_at, updated_at FROM sets
+        ");
+        $db->exec("DROP TABLE sets");
+        $db->exec("ALTER TABLE sets_v3 RENAME TO sets");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_sets_exercise ON sets(exercise_id, position)");
+
+        // --- logs: read the JSON summaries before the column goes away --
+        $legacy = $db->query("SELECT id, workout_id, summary FROM workoutLog ORDER BY id")->fetchAll();
+
+        $db->exec("
+            CREATE TABLE workoutLog_v3 (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                workout_id INTEGER NOT NULL,
+                workout_name TEXT,
+                workload REAL NOT NULL DEFAULT 0,
+                duration INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+        $db->exec("
+            INSERT INTO workoutLog_v3(id, workout_id, workout_name, workload, duration, created_at, updated_at)
+            SELECT id, workout_id, workout_name, workload, duration, created_at, updated_at FROM workoutLog
+        ");
+        $db->exec("DROP TABLE workoutLog");
+        $db->exec("ALTER TABLE workoutLog_v3 RENAME TO workoutLog");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_log_workout_created ON workoutLog(workout_id, created_at)");
+
+        $db->exec("
+            CREATE TABLE logExercises (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                log_id INTEGER NOT NULL,
+                exercise_id INTEGER,
+                name TEXT NOT NULL,
+                position INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY(log_id) REFERENCES workoutLog(id) ON DELETE CASCADE
+            )
+        ");
+        $db->exec("
+            CREATE TABLE logSets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                log_exercise_id INTEGER NOT NULL,
+                position INTEGER NOT NULL DEFAULT 0,
+                repetitions INTEGER NOT NULL DEFAULT 0,
+                unit TEXT NOT NULL DEFAULT 'kg' CHECK (unit IN ($units)),
+                load REAL,
+                rest_time INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY(log_exercise_id) REFERENCES logExercises(id) ON DELETE CASCADE
+            )
+        ");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_logExercises_log ON logExercises(log_id, position)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_logExercises_exercise ON logExercises(exercise_id)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_logSets_exercise ON logSets(log_exercise_id, position)");
+
+        $findExercise = $db->prepare("SELECT id FROM exercises WHERE workout_id = :workout_id AND LOWER(name) = LOWER(:name) LIMIT 1");
+
+        foreach ($legacy as $log) {
+            $summary = json_decode((string)$log['summary'], true);
+            $exercises = is_array($summary) && isset($summary['exercises']) && is_array($summary['exercises'])
+                ? array_values($summary['exercises'])
+                : [];
+
+            foreach ($exercises as $position => $exercise) {
+                if (!is_array($exercise)) {
+                    continue;
+                }
+                $name = trim((string)($exercise['name'] ?? ''));
+                $findExercise->execute([':workout_id' => $log['workout_id'], ':name' => $name]);
+                $exerciseId = $findExercise->fetchColumn();
+
+                $sets = [];
+                foreach ((is_array($exercise['sets'] ?? null) ? $exercise['sets'] : []) as $set) {
+                    if (!is_array($set)) {
+                        continue;
+                    }
+                    if (isset($set['unit']) && ($unit = Unit::tryFrom((string)$set['unit'])) !== null) {
+                        $load = $unit->needsLoad() && isset($set['load']) && $set['load'] !== '' ? (float)str_replace(',', '.', (string)$set['load']) : null;
+                    } else {
+                        [$unit, $load] = Unit::fromLegacy((string)($set['measureUnit'] ?? ''));
+                    }
+                    $sets[] = [
+                        'repetitions' => (int)($set['reps'] ?? 0),
+                        'unit' => $unit,
+                        'load' => $load,
+                        'rest_time' => (int)($set['breaktime'] ?? $set['rest_time'] ?? 0),
+                    ];
+                }
+
+                self::insertLogExercise((int)$log['id'], $position + 1, $exerciseId === false ? null : (int)$exerciseId, $name === '' ? 'Übung' : $name, $sets);
+            }
+        }
     }
 
     private static function columnExists(string $table, string $column): bool
@@ -284,6 +412,48 @@ class Database
         return $stmt->rowCount();
     }
 
+    /**
+     * Copy a workout with all exercises and sets. Returns the new id.
+     */
+    public static function duplicateWorkout(int $id): int
+    {
+        $plan = self::getWorkoutPlan($id);
+        if ($plan === null) {
+            throw new RuntimeException("Workout $id does not exist");
+        }
+
+        $db = self::pdo();
+        $db->beginTransaction();
+        try {
+            $newId = self::addWorkout(mb_substr($plan['name'] . ' (Kopie)', 0, 100));
+            $insertExercise = $db->prepare("INSERT INTO exercises(name, workout_id, position) VALUES(:name, :workout_id, :position)");
+            $insertSet = $db->prepare(
+                "INSERT INTO sets(exercise_id, repetitions, unit, load, rest_time, position)
+                 VALUES(:exercise_id, :repetitions, :unit, :load, :rest_time, :position)"
+            );
+
+            foreach ($plan['exercises'] as $i => $exercise) {
+                $insertExercise->execute([':name' => $exercise['name'], ':workout_id' => $newId, ':position' => $i + 1]);
+                $exerciseId = (int)$db->lastInsertId();
+                foreach ($exercise['sets'] as $j => $set) {
+                    $insertSet->execute([
+                        ':exercise_id' => $exerciseId,
+                        ':repetitions' => $set['repetitions'],
+                        ':unit' => $set['unit'],
+                        ':load' => $set['load'],
+                        ':rest_time' => $set['rest_time'],
+                        ':position' => $j + 1,
+                    ]);
+                }
+            }
+            $db->commit();
+            return $newId;
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
+
     // ---------------------------------------------------------------
     // Exercises
     // ---------------------------------------------------------------
@@ -331,13 +501,26 @@ class Database
         return $stmt->rowCount();
     }
 
+    /**
+     * Move an exercise one step up (-1) or down (+1) within its workout.
+     */
+    public static function moveExercise(int $id, int $direction): void
+    {
+        $exercise = self::getExercise($id);
+        if ($exercise === null) {
+            return;
+        }
+        self::moveWithinSiblings('exercises', 'workout_id', (int)$exercise['workout_id'], $id, $direction);
+        self::touchWorkout((int)$exercise['workout_id']);
+    }
+
     // ---------------------------------------------------------------
     // Sets
     // ---------------------------------------------------------------
 
     public static function getSet(int $id): ?array
     {
-        $stmt = self::pdo()->prepare("SELECT id, exercise_id, repetitions, unit, load, rest_time FROM sets WHERE id = :id");
+        $stmt = self::pdo()->prepare("SELECT id, exercise_id, repetitions, unit, load, rest_time, position FROM sets WHERE id = :id");
         $stmt->execute([':id' => $id]);
         $row = $stmt->fetch();
         return $row === false ? null : $row;
@@ -397,39 +580,144 @@ class Database
         return $stmt->rowCount();
     }
 
+    /**
+     * Insert a copy of a set directly after the original. Returns the new id.
+     */
+    public static function duplicateSet(int $id): int
+    {
+        $set = self::getSet($id);
+        if ($set === null) {
+            throw new RuntimeException("Set $id does not exist");
+        }
+
+        $db = self::pdo();
+        $db->beginTransaction();
+        try {
+            $position = self::renumber('sets', 'exercise_id', (int)$set['exercise_id'])[$id];
+            $shift = $db->prepare("UPDATE sets SET position = position + 1 WHERE exercise_id = :exercise_id AND position > :position");
+            $shift->execute([':exercise_id' => $set['exercise_id'], ':position' => $position]);
+
+            $insert = $db->prepare(
+                "INSERT INTO sets(exercise_id, repetitions, unit, load, rest_time, position)
+                 VALUES(:exercise_id, :repetitions, :unit, :load, :rest_time, :position)"
+            );
+            $insert->execute([
+                ':exercise_id' => $set['exercise_id'],
+                ':repetitions' => $set['repetitions'],
+                ':unit' => $set['unit'],
+                ':load' => $set['load'],
+                ':rest_time' => $set['rest_time'],
+                ':position' => $position + 1,
+            ]);
+            $newId = (int)$db->lastInsertId();
+            self::touchWorkoutOfExercise((int)$set['exercise_id']);
+            $db->commit();
+            return $newId;
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Move a set one step up (-1) or down (+1) within its exercise.
+     */
+    public static function moveSet(int $id, int $direction): void
+    {
+        $set = self::getSet($id);
+        if ($set === null) {
+            return;
+        }
+        self::moveWithinSiblings('sets', 'exercise_id', (int)$set['exercise_id'], $id, $direction);
+        self::touchWorkoutOfExercise((int)$set['exercise_id']);
+    }
+
     // ---------------------------------------------------------------
     // Logs
     // ---------------------------------------------------------------
 
-    public static function addLog(int $workoutId, float $workload, int $duration, string $summary): int
+    /**
+     * Store a finished session. $exercises is a list of
+     * ['exercise_id' => ?int, 'name' => string, 'sets' => list of
+     * ['repetitions' => int, 'unit' => Unit, 'load' => ?float, 'rest_time' => int]].
+     * The workload is computed here from the sets, never taken from the client.
+     */
+    public static function addLog(int $workoutId, int $duration, array $exercises): int
     {
         $workout = self::getWorkout($workoutId);
         if ($workout === null) {
             throw new RuntimeException("Workout $workoutId does not exist");
         }
 
-        $stmt = self::pdo()->prepare(
-            "INSERT INTO workoutLog(workout_id, workout_name, workload, duration, summary)
-             VALUES(:workout_id, :workout_name, :workload, :duration, :summary)"
+        $workload = 0.0;
+        foreach ($exercises as $exercise) {
+            foreach ($exercise['sets'] as $set) {
+                $workload += $set['unit']->workload($set['repetitions'], $set['load']);
+            }
+        }
+
+        $db = self::pdo();
+        $db->beginTransaction();
+        try {
+            $stmt = $db->prepare(
+                "INSERT INTO workoutLog(workout_id, workout_name, workload, duration)
+                 VALUES(:workout_id, :workout_name, :workload, :duration)"
+            );
+            $stmt->execute([
+                ':workout_id' => $workoutId,
+                ':workout_name' => $workout['name'],
+                ':workload' => $workload,
+                ':duration' => $duration,
+            ]);
+            $logId = (int)$db->lastInsertId();
+
+            foreach (array_values($exercises) as $i => $exercise) {
+                self::insertLogExercise($logId, $i + 1, $exercise['exercise_id'], $exercise['name'], $exercise['sets']);
+            }
+
+            $db->commit();
+            return $logId;
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
+
+    private static function insertLogExercise(int $logId, int $position, ?int $exerciseId, string $name, array $sets): void
+    {
+        $db = self::pdo();
+        $insertExercise = $db->prepare(
+            "INSERT INTO logExercises(log_id, exercise_id, name, position) VALUES(:log_id, :exercise_id, :name, :position)"
         );
-        $stmt->execute([
-            ':workout_id' => $workoutId,
-            ':workout_name' => $workout['name'],
-            ':workload' => $workload,
-            ':duration' => $duration,
-            ':summary' => $summary,
-        ]);
-        return (int)self::pdo()->lastInsertId();
+        $insertExercise->execute([':log_id' => $logId, ':exercise_id' => $exerciseId, ':name' => $name, ':position' => $position]);
+        $logExerciseId = (int)$db->lastInsertId();
+
+        $insertSet = $db->prepare(
+            "INSERT INTO logSets(log_exercise_id, position, repetitions, unit, load, rest_time)
+             VALUES(:log_exercise_id, :position, :repetitions, :unit, :load, :rest_time)"
+        );
+        foreach (array_values($sets) as $j => $set) {
+            $unit = $set['unit'] instanceof Unit ? $set['unit'] : (Unit::tryFrom((string)$set['unit']) ?? Unit::Kg);
+            $insertSet->execute([
+                ':log_exercise_id' => $logExerciseId,
+                ':position' => $j + 1,
+                ':repetitions' => (int)$set['repetitions'],
+                ':unit' => $unit->value,
+                ':load' => $unit->needsLoad() ? $set['load'] : null,
+                ':rest_time' => (int)($set['rest_time'] ?? 0),
+            ]);
+        }
     }
 
     /**
-     * All logs, newest first. previous_workload and best_before are computed
-     * only over entries that existed at the time of each log, so an old
-     * personal record is not retroactively downgraded by later sessions.
+     * All logs, newest first, each with its exercises and sets nested.
+     * previous_workload and best_before are computed only over entries that
+     * existed at the time of each log, so an old personal record is not
+     * retroactively downgraded by later sessions.
      */
     public static function getLogs(): array
     {
-        $sql = "
+        $logs = self::pdo()->query("
             SELECT
                 wl.id,
                 wl.workout_id,
@@ -438,7 +726,6 @@ class Database
                 wl.workload AS actual_workload,
                 wl.duration,
                 wl.created_at,
-                wl.summary AS workout_summary,
                 MAX(wl.workload) OVER (
                     PARTITION BY wl.workout_id ORDER BY wl.created_at, wl.id
                     ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
@@ -449,14 +736,123 @@ class Database
             FROM workoutLog wl
             LEFT JOIN workouts w ON wl.workout_id = w.id
             ORDER BY wl.created_at DESC, wl.id DESC
-        ";
+        ")->fetchAll();
 
-        return self::pdo()->query($sql)->fetchAll();
+        $exercisesByLog = [];
+        foreach (self::pdo()->query("SELECT id, log_id, exercise_id, name FROM logExercises ORDER BY log_id, position, id") as $row) {
+            $row['sets'] = [];
+            $exercisesByLog[$row['log_id']][$row['id']] = $row;
+        }
+        $logOfExercise = [];
+        foreach ($exercisesByLog as $logId => $exercises) {
+            foreach ($exercises as $exerciseId => $_) {
+                $logOfExercise[$exerciseId] = $logId;
+            }
+        }
+        foreach (self::pdo()->query("SELECT log_exercise_id, repetitions, unit, load, rest_time FROM logSets ORDER BY log_exercise_id, position, id") as $set) {
+            $logId = $logOfExercise[$set['log_exercise_id']] ?? null;
+            if ($logId !== null) {
+                $exercisesByLog[$logId][$set['log_exercise_id']]['sets'][] = $set;
+            }
+        }
+
+        foreach ($logs as &$log) {
+            $log['exercises'] = array_values($exercisesByLog[$log['id']] ?? []);
+        }
+        unset($log);
+
+        return $logs;
+    }
+
+    /**
+     * What was logged the last time this workout was done: the log's date and
+     * workload plus, per exercise, the sets. Exercises are keyed by exercise
+     * id when the log knows it, otherwise by lower-cased name.
+     */
+    public static function getLastPerformance(int $workoutId): ?array
+    {
+        $stmt = self::pdo()->prepare(
+            "SELECT id, workload, duration, created_at FROM workoutLog WHERE workout_id = :workout_id ORDER BY created_at DESC, id DESC LIMIT 1"
+        );
+        $stmt->execute([':workout_id' => $workoutId]);
+        $log = $stmt->fetch();
+        if ($log === false) {
+            return null;
+        }
+
+        $stmt = self::pdo()->prepare("
+            SELECT le.exercise_id, le.name, ls.repetitions, ls.unit, ls.load, ls.rest_time
+            FROM logExercises le
+            JOIN logSets ls ON ls.log_exercise_id = le.id
+            WHERE le.log_id = :log_id
+            ORDER BY le.position, le.id, ls.position, ls.id
+        ");
+        $stmt->execute([':log_id' => $log['id']]);
+
+        $exercises = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $key = $row['exercise_id'] !== null ? 'id:' . $row['exercise_id'] : 'name:' . mb_strtolower(trim((string)$row['name']));
+            $exercises[$key][] = [
+                'repetitions' => (int)$row['repetitions'],
+                'unit' => $row['unit'],
+                'load' => $row['load'] === null ? null : (float)$row['load'],
+                'rest_time' => (int)$row['rest_time'],
+            ];
+        }
+
+        return [
+            'log_id' => (int)$log['id'],
+            'created_at' => $log['created_at'],
+            'workload' => (float)$log['workload'],
+            'duration' => (int)$log['duration'],
+            'exercises' => $exercises,
+        ];
     }
 
     // ---------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------
+
+    /**
+     * Give the siblings sharing $parentColumn = $parentId positions 1..n in
+     * their current display order. Returns id => position.
+     */
+    private static function renumber(string $table, string $parentColumn, int $parentId): array
+    {
+        $db = self::pdo();
+        $stmt = $db->prepare("SELECT id FROM $table WHERE $parentColumn = :parent ORDER BY position, id");
+        $stmt->execute([':parent' => $parentId]);
+        $update = $db->prepare("UPDATE $table SET position = :position WHERE id = :id");
+
+        $positions = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $i => $id) {
+            $positions[(int)$id] = $i + 1;
+            $update->execute([':position' => $i + 1, ':id' => $id]);
+        }
+        return $positions;
+    }
+
+    private static function moveWithinSiblings(string $table, string $parentColumn, int $parentId, int $id, int $direction): void
+    {
+        $db = self::pdo();
+        $db->beginTransaction();
+        try {
+            $positions = self::renumber($table, $parentColumn, $parentId);
+            $ids = array_keys($positions);
+            $index = array_search($id, $ids, true);
+            $target = $index === false ? false : $index + ($direction < 0 ? -1 : 1);
+
+            if ($index !== false && $target >= 0 && $target < count($ids)) {
+                $update = $db->prepare("UPDATE $table SET position = :position WHERE id = :id");
+                $update->execute([':position' => $target + 1, ':id' => $ids[$index]]);
+                $update->execute([':position' => $index + 1, ':id' => $ids[$target]]);
+            }
+            $db->commit();
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
 
     private static function touchWorkout(int $workoutId): void
     {

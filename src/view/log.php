@@ -1,5 +1,6 @@
 <?php
 $logs = $params['logs'];
+$histories = \App\History::byExercise($logs);
 
 /**
  * Classify a log entry against its own history (only entries before it).
@@ -53,11 +54,6 @@ $classify = static function (array $log): array {
     <div class="stack">
         <?php foreach ($logs as $log) {
             [$bestLabel, $bestClass, $prevLabel, $prevClass] = $classify($log);
-
-            $summary = json_decode((string)$log['workout_summary'], true);
-            $exercises = is_array($summary) && isset($summary['exercises']) && is_array($summary['exercises'])
-                ? array_values($summary['exercises'])
-                : [];
             ?>
             <article class="card log">
                 <header class="card-header">
@@ -80,13 +76,15 @@ $classify = static function (array $log): array {
                     </div>
                 </div>
 
-                <?php if (count($exercises) > 0) { ?>
+                <?php if (count($log['exercises']) > 0) { ?>
                     <details class="disclosure">
                         <summary>Protokoll anzeigen <?= icon('chevron', 'icon-sm') ?></summary>
                         <div class="disclosure-body">
-                            <?php foreach ($exercises as $exercise) { ?>
+                            <?php foreach ($log['exercises'] as $exercise) {
+                                $history = $histories[\App\History::key($log, $exercise)] ?? [];
+                                ?>
                                 <div>
-                                    <h3><?= e($exercise['name'] ?? '') ?></h3>
+                                    <h3><?= e($exercise['name']) ?></h3>
                                     <table class="sets">
                                         <thead>
                                         <tr>
@@ -97,16 +95,32 @@ $classify = static function (array $log): array {
                                         </tr>
                                         </thead>
                                         <tbody>
-                                        <?php foreach (($exercise['sets'] ?? []) as $j => $set) { ?>
+                                        <?php foreach ($exercise['sets'] as $j => $set) { ?>
                                             <tr>
                                                 <td class="num"><?= $j + 1 ?></td>
-                                                <td><?= e($set['reps'] ?? '') ?></td>
-                                                <td class="unit"><?= e(log_set_label($set)) ?></td>
-                                                <td><?= e($set['breaktime'] ?? '') ?> s</td>
+                                                <td><?= e($set['repetitions']) ?></td>
+                                                <td class="unit"><?= e(set_label($set)) ?></td>
+                                                <td><?= e($set['rest_time']) ?> s</td>
                                             </tr>
                                         <?php } ?>
                                         </tbody>
                                     </table>
+                                    <?php if (count($history) > 1) { ?>
+                                        <details class="disclosure disclosure-nested">
+                                            <summary>Verlauf (<?= count($history) ?>) <?= icon('chevron', 'icon-sm') ?></summary>
+                                            <table class="sets history">
+                                                <tbody>
+                                                <?php foreach (array_slice($history, 0, 10) as $entry) { ?>
+                                                    <tr<?= $entry['log_id'] === (int)$log['id'] ? ' class="is-current"' : '' ?>>
+                                                        <td class="num"><?= e(local_datetime($entry['created_at'], 'd.m.y')) ?></td>
+                                                        <td class="unit"><?= e(\App\History::setsLine($entry['sets'])) ?></td>
+                                                        <td class="volume"><?= e(format_number($entry['volume'])) ?></td>
+                                                    </tr>
+                                                <?php } ?>
+                                                </tbody>
+                                            </table>
+                                        </details>
+                                    <?php } ?>
                                 </div>
                             <?php } ?>
                         </div>

@@ -29,8 +29,13 @@ A set is `repetitions` × a load. `sets.unit` is one of the `App\Unit` cases (`k
 `bw` for bodyweight, `s` for seconds) and `sets.load` is the number that goes with it
 (kg or seconds, NULL for bodyweight). Workload per set is reps × load, or just reps for
 bodyweight. Schema v2 rebuilt the sets table from the old free-text `measure_unit`
-column; `Unit::fromLegacy()` holds the parsing rules. Log summaries written before v2
-still carry `measureUnit` as text and are displayed unchanged.
+column; `Unit::fromLegacy()` holds the parsing rules.
+
+A finished session is stored in `workoutLog` (one row per session, workload computed on
+the server) with its exercises in `logExercises` and their sets in `logSets`. Schema v3
+migrated the earlier JSON summaries into these tables, matching exercises by name within
+the workout. `Database::getLastPerformance()` feeds the "letztes Mal" column in the
+session; `App\History` groups logged exercises for the history on the logs page.
 
 ## Front end
 

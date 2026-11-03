@@ -42,6 +42,18 @@
         </label>
         <button class="btn btn-primary btn-block" type="submit">Speichern</button>
     </form>
+    <div class="sheet-actions">
+        <form method="POST" action="/moveExercise">
+            <input type="hidden" name="exercise_id" value="<?= e($exercise['id']) ?>">
+            <input type="hidden" name="direction" value="up">
+            <button class="btn btn-ghost btn-block" type="submit"><?= icon('up', 'icon-sm') ?> Nach oben</button>
+        </form>
+        <form method="POST" action="/moveExercise">
+            <input type="hidden" name="exercise_id" value="<?= e($exercise['id']) ?>">
+            <input type="hidden" name="direction" value="down">
+            <button class="btn btn-ghost btn-block" type="submit"><?= icon('down', 'icon-sm') ?> Nach unten</button>
+        </form>
+    </div>
     <form class="sheet-footer" method="POST" action="/deleteExercise" data-confirm="Übung „<?= e($exercise['name']) ?>“ mit allen Sätzen löschen?">
         <input type="hidden" name="exercise_id" value="<?= e($exercise['id']) ?>">
         <button class="btn btn-danger btn-block" type="submit"><?= icon('trash', 'icon-sm') ?> Übung löschen</button>

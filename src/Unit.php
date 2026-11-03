@@ -11,6 +11,7 @@ enum Unit: string
     case Kg = 'kg';
     case Bodyweight = 'bw';
     case Seconds = 's';
+    case Minutes = 'min';
 
     public function label(): string
     {
@@ -18,6 +19,7 @@ enum Unit: string
             self::Kg => 'kg',
             self::Bodyweight => 'Körpergewicht',
             self::Seconds => 'Sekunden',
+            self::Minutes => 'Minuten',
         };
     }
 
@@ -27,6 +29,7 @@ enum Unit: string
         return match ($this) {
             self::Kg => 'Gewicht (kg)',
             self::Seconds => 'Dauer (s)',
+            self::Minutes => 'Dauer (min)',
             self::Bodyweight => null,
         };
     }
@@ -41,8 +44,21 @@ enum Unit: string
         return match ($this) {
             self::Kg => 10000,
             self::Seconds => 86400,
+            self::Minutes => 1440,
             self::Bodyweight => 0,
         };
+    }
+
+    /** All backing values, for CHECK constraints and client code. */
+    public static function values(): array
+    {
+        return array_map(static fn(self $unit) => $unit->value, self::cases());
+    }
+
+    /** Short form used in compact set lists: "8 × 80 kg", "12 × KG", "1 × 45 s". */
+    public function short(float|int|string|null $load): string
+    {
+        return $this === self::Bodyweight ? 'KG' : $this->format($load);
     }
 
     /** Human-readable load, e.g. "80 kg", "60 s", "Körpergewicht". */
@@ -52,6 +68,7 @@ enum Unit: string
             self::Bodyweight => $this->label(),
             self::Kg => ($load === null ? '–' : format_number($load)) . ' kg',
             self::Seconds => ($load === null ? '–' : format_number($load)) . ' s',
+            self::Minutes => ($load === null ? '–' : format_number($load)) . ' min',
         };
     }
 
@@ -83,7 +100,7 @@ enum Unit: string
         $suffix = $m[2];
 
         if (preg_match('/^min/u', $suffix)) {
-            return [self::Seconds, $load * 60];
+            return [self::Minutes, $load];
         }
         if (preg_match('/^(s$|sek|sec)/u', $suffix)) {
             return [self::Seconds, $load];

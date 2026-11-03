@@ -1,48 +1,44 @@
 <div class="session" id="session" hidden>
-    <div class="app">
-        <header class="topbar">
+    <div class="app session-shell">
+        <header class="session-header">
             <div class="topbar-text">
                 <h1 id="session-name"></h1>
-                <p class="hint">Gestartet um <span id="session-start"></span></p>
+                <p class="hint"><span id="session-elapsed">0:00</span> · <span id="session-progress-text"></span></p>
             </div>
-            <a class="icon-btn" href="/workout?workout_id=<?= e($workout['id']) ?>" aria-label="Workout verlassen"><?= icon('close') ?></a>
+            <button class="icon-btn" type="button" id="session-close" aria-label="Workout schließen (kann fortgesetzt werden)"><?= icon('close') ?></button>
         </header>
+        <div class="progress-bar"><div class="progress-bar-fill" id="session-progress"></div></div>
 
-        <section class="session-stage" id="session-stage">
-            <div>
-                <p class="eyebrow">Übung <span id="session-exercise-index"></span> von <span id="session-exercise-total"></span></p>
-                <h2 class="session-exercise" id="session-exercise"></h2>
-            </div>
-            <div class="session-set">
-                <b>Satz <span id="session-set-index"></span></b>
-                <span>von <span id="session-set-total"></span></span>
-            </div>
-            <div class="grid-2">
-                <label class="field">
-                    <span>Wiederholungen</span>
-                    <input class="input input-lg" id="session-reps" name="reps" type="number" inputmode="numeric" min="0">
-                </label>
-                <label class="field" id="session-load-field">
-                    <span id="session-load-label">Gewicht (kg)</span>
-                    <input class="input input-lg" id="session-load" name="load" type="number" inputmode="decimal" min="0" step="any">
-                </label>
-            </div>
-            <button class="btn btn-primary btn-block btn-lg btn-next" type="button" id="session-next">
-                <span><?= icon('check') ?></span><span>Satz abschließen</span>
-            </button>
-        </section>
+        <div class="session-list" id="session-list"></div>
 
-        <section class="session-summary" id="session-summary" hidden>
-            <h2>Geschafft!</h2>
-            <div class="stats">
-                <div class="stat"><b id="session-duration"></b><span>Minuten</span></div>
-                <div class="stat"><b id="session-workload"></b><span>Workload</span></div>
-            </div>
-            <details class="disclosure">
-                <summary>Protokoll anzeigen <?= icon('chevron', 'icon-sm') ?></summary>
-                <div class="disclosure-body" id="session-log"></div>
-            </details>
-            <button class="btn btn-primary btn-block btn-lg" type="button" id="session-finish">Speichern und beenden</button>
-        </section>
+        <button class="btn btn-ghost btn-block btn-lg" type="button" id="session-finish"><?= icon('check') ?> Workout beenden</button>
     </div>
+
+    <div class="rest-bar" id="rest-bar" hidden>
+        <div class="rest-bar-fill" id="rest-fill"></div>
+        <div class="rest-bar-content">
+            <span class="rest-bar-label"><?= icon('timer', 'icon-sm') ?> Pause</span>
+            <b id="rest-remaining">0:00</b>
+            <button class="btn btn-ghost" type="button" id="rest-skip">Überspringen</button>
+        </div>
+    </div>
+
+    <dialog class="sheet" id="session-summary">
+        <div class="sheet-header">
+            <h2>Workout beenden</h2>
+            <button class="icon-btn" type="button" data-close aria-label="Schließen"><?= icon('close') ?></button>
+        </div>
+        <div class="sheet-body">
+            <div class="stats">
+                <div class="stat"><b id="summary-duration"></b><span>Minuten</span></div>
+                <div class="stat"><b id="summary-workload"></b><span>Workload</span></div>
+            </div>
+            <div class="badges" id="summary-badges"></div>
+            <p class="hint" id="summary-open" hidden></p>
+            <button class="btn btn-primary btn-block btn-lg" type="button" id="summary-save">Speichern</button>
+        </div>
+        <div class="sheet-footer">
+            <button class="btn btn-danger btn-block" type="button" id="summary-discard"><?= icon('trash', 'icon-sm') ?> Workout verwerfen</button>
+        </div>
+    </dialog>
 </div>

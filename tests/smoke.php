@@ -147,8 +147,11 @@ check('legacy units migrated to enum + load', array_map(fn($r) => [$r['unit'], $
 check('legacy rest_time is now an integer', (int)$migrated[0]['rest_time'] === 120);
 $r = request('GET', '/workout?workout_id=1');
 check('legacy workout page renders migrated labels', $r['status'] === 200 && str_contains($r['body'], '22,5 kg') && str_contains($r['body'], 'Körpergewicht') && str_contains($r['body'], '60 s') && str_contains($r['body'], '– kg'));
+$legacyLog = db()->query("SELECT le.exercise_id, le.name, ls.repetitions, ls.unit, ls.load, ls.rest_time FROM logExercises le JOIN logSets ls ON ls.log_exercise_id = le.id JOIN workoutLog wl ON wl.id = le.log_id WHERE wl.workout_id = 1")->fetchAll(PDO::FETCH_ASSOC);
+check('legacy JSON log migrated into logExercises/logSets', count($legacyLog) === 1 && (int)$legacyLog[0]['exercise_id'] === 1 && $legacyLog[0]['name'] === 'Altbestand' && (int)$legacyLog[0]['repetitions'] === 8 && $legacyLog[0]['unit'] === 'kg' && (float)$legacyLog[0]['load'] === 90.0 && (int)$legacyLog[0]['rest_time'] === 120, json_encode($legacyLog));
+check('workoutLog has no summary column anymore', !in_array('summary', array_column(db()->query('PRAGMA table_info(workoutLog)')->fetchAll(PDO::FETCH_ASSOC), 'name'), true));
 $r = request('GET', '/logs');
-check('legacy log summary still shows its free-text unit', $r['status'] === 200 && str_contains($r['body'], '>90kg<'));
+check('legacy log renders from tables', $r['status'] === 200 && str_contains($r['body'], 'Altbestand') && str_contains($r['body'], '>90 kg<'));
 }
 
 // --- csrf -----------------------------------------------------------------
@@ -207,6 +210,12 @@ $r = request('POST', '/editSet', ['set_id' => $setId, 'repetitions' => 1, 'unit'
 $set = db()->query("SELECT unit, load FROM sets WHERE id=$setId")->fetch(PDO::FETCH_ASSOC);
 check('set can switch to seconds', $r['status'] === 303 && $set['unit'] === 's' && (float)$set['load'] === 45.0);
 
+$r = request('POST', '/editSet', ['set_id' => $setId, 'repetitions' => 1, 'unit' => 'min', 'load' => 20, 'rest_time' => 30]);
+$set = db()->query("SELECT unit, load FROM sets WHERE id=$setId")->fetch(PDO::FETCH_ASSOC);
+check('set can use minutes', $r['status'] === 303 && $set['unit'] === 'min' && (float)$set['load'] === 20.0);
+$r = request('GET', "/workout?workout_id=$workoutId");
+check('minutes rendered', str_contains($r['body'], '>20 min<'));
+
 $r = request('POST', '/deleteSet', ['set_id' => $setId]);
 check('delete set', $r['status'] === 303 && (int)db()->query("SELECT COUNT(*) FROM sets WHERE id=$setId")->fetchColumn() === 0);
 
@@ -224,29 +233,74 @@ check('api plan 200 json', $r['status'] === 200 && ($plan['status'] ?? '') === '
 check('api plan nests sets', count($plan['workout']['exercises'][0]['sets'] ?? []) === 2);
 check('api plan exposes unit and load', ($plan['workout']['exercises'][0]['sets'][1]['unit'] ?? '') === 'kg' && (float)($plan['workout']['exercises'][0]['sets'][1]['load'] ?? 0) === 80.0);
 
+check('api plan carries last performance (none yet)', array_key_exists('last', $plan) && $plan['last'] === null);
+
 $r = request('GET', '/api/workout/999999');
 check('api unknown workout 404 json', $r['status'] === 404 && str_contains($r['body'], '"status":"error"'));
 
-$summary = ['exercises' => [['name' => 'Bankdrücken', 'sets' => [['reps' => '8', 'unit' => 'kg', 'load' => '80', 'breaktime' => '120'], ['reps' => '12', 'unit' => 'bw', 'load' => null, 'breaktime' => '60']]]]];
-$r = request('POST', '/api/workout/log', json_encode(['workout_id' => $workoutId, 'duration' => 42, 'workload' => 640.5, 'summary' => $summary]), ['Content-Type' => 'application/json']);
+// --- reorder & duplicate ------------------------------------------------------
+$setIds = db()->query("SELECT id FROM sets WHERE exercise_id=$exerciseId ORDER BY position, id")->fetchAll(PDO::FETCH_COLUMN);
+$r = request('POST', '/moveSet', ['set_id' => $setIds[1], 'direction' => 'up']);
+$after = db()->query("SELECT id FROM sets WHERE exercise_id=$exerciseId ORDER BY position, id")->fetchAll(PDO::FETCH_COLUMN);
+check('move set up swaps order', $r['status'] === 303 && $after === [$setIds[1], $setIds[0]], json_encode($after));
+$r = request('POST', '/moveSet', ['set_id' => $setIds[1], 'direction' => 'up']);
+$after = db()->query("SELECT id FROM sets WHERE exercise_id=$exerciseId ORDER BY position, id")->fetchAll(PDO::FETCH_COLUMN);
+check('move first set up is a no-op', $after === [$setIds[1], $setIds[0]]);
+$r = request('POST', '/moveSet', ['set_id' => $setIds[1], 'direction' => 'sideways']);
+check('invalid direction rejected', $r['status'] === 400, "got {$r['status']}");
+
+$r = request('POST', '/duplicateSet', ['set_id' => $setIds[1]]);
+$after = db()->query("SELECT id, repetitions, unit, load FROM sets WHERE exercise_id=$exerciseId ORDER BY position, id")->fetchAll(PDO::FETCH_ASSOC);
+check('duplicate set inserts a copy right after the original', $r['status'] === 303 && count($after) === 3 && (int)$after[0]['id'] === (int)$setIds[1] && (int)$after[2]['id'] === (int)$setIds[0] && $after[1]['unit'] === $after[0]['unit'] && (float)$after[1]['load'] === (float)$after[0]['load'], json_encode($after));
+request('POST', '/deleteSet', ['set_id' => $after[1]['id']]);
+
+request('POST', '/addExercise', ['workout_id' => $workoutId, 'exercise_name' => 'Zweite']);
+$exerciseIds = db()->query("SELECT id FROM exercises WHERE workout_id=$workoutId ORDER BY position, id")->fetchAll(PDO::FETCH_COLUMN);
+$r = request('POST', '/moveExercise', ['exercise_id' => $exerciseIds[1], 'direction' => 'up']);
+$plan = json_decode(request('GET', "/api/workout/$workoutId")['body'], true);
+check('move exercise up reorders the plan', $r['status'] === 303 && array_column($plan['workout']['exercises'], 'id') === [(int)$exerciseIds[1], (int)$exerciseIds[0]], json_encode(array_column($plan['workout']['exercises'], 'id')));
+request('POST', '/moveExercise', ['exercise_id' => $exerciseIds[1], 'direction' => 'down']);
+request('POST', '/deleteExercise', ['exercise_id' => $exerciseIds[1]]);
+
+$r = request('POST', '/duplicateWorkout', ['workout_id' => $workoutId]);
+$copyId = (int)db()->query("SELECT id FROM workouts WHERE name=" . db()->quote($name . ' (Kopie)'))->fetchColumn();
+check('duplicate workout redirects to the copy', $r['status'] === 303 && $copyId > 0 && $r['location'] === "/workout?workout_id=$copyId", "loc {$r['location']}");
+check('duplicate workout copies exercises and sets', (int)db()->query("SELECT COUNT(*) FROM sets s JOIN exercises e ON e.id = s.exercise_id WHERE e.workout_id=$copyId")->fetchColumn() === 2);
+request('POST', '/deleteWorkout', ['workout_id' => $copyId]);
+
+$logPayload = fn(array $sets) => json_encode(['workout_id' => $workoutId, 'duration' => 42, 'exercises' => [['exercise_id' => $exerciseId, 'name' => 'Bankdrücken', 'sets' => $sets]]]);
+$setsA = [['reps' => 8, 'unit' => 'kg', 'load' => '80', 'rest_time' => 120], ['reps' => 12, 'unit' => 'bw', 'load' => null, 'rest_time' => 60]];
+$r = request('POST', '/api/workout/log', $logPayload($setsA), ['Content-Type' => 'application/json']);
 check('api log 200', $r['status'] === 200, "got {$r['status']} {$r['body']}");
 $logId = (int)db()->query("SELECT id FROM workoutLog WHERE workout_id=$workoutId ORDER BY id DESC LIMIT 1")->fetchColumn();
 check('log stored with workout name snapshot', $logId > 0 && db()->query("SELECT workout_name FROM workoutLog WHERE id=$logId")->fetchColumn() === $name);
+check('workload computed on the server (8×80 + 12 reps bodyweight)', (float)db()->query("SELECT workload FROM workoutLog WHERE id=$logId")->fetchColumn() === 652.0);
+$stored = db()->query("SELECT ls.repetitions, ls.unit, ls.load, ls.rest_time, le.exercise_id FROM logSets ls JOIN logExercises le ON le.id = ls.log_exercise_id WHERE le.log_id=$logId ORDER BY ls.position")->fetchAll(PDO::FETCH_ASSOC);
+check('logged sets stored in tables', count($stored) === 2 && (int)$stored[0]['exercise_id'] === $exerciseId && $stored[1]['unit'] === 'bw' && $stored[1]['load'] === null && (int)$stored[0]['rest_time'] === 120, json_encode($stored));
 
-$r = request('POST', '/api/workout/log', json_encode(['workout_id' => $workoutId, 'duration' => 42, 'workload' => 640]), ['Content-Type' => 'application/json']);
-check('api log without summary 400', $r['status'] === 400, "got {$r['status']}");
+$r = request('GET', "/api/workout/$workoutId");
+$plan = json_decode($r['body'], true);
+check('api plan carries last performance', ($plan['last']['workload'] ?? null) == 652 && count($plan['last']['exercises']["id:$exerciseId"] ?? []) === 2, json_encode($plan['last'] ?? null));
 
-$r = request('POST', '/api/workout/log', json_encode(['workout_id' => $workoutId, 'duration' => 30, 'workload' => 0, 'summary' => $summary]), ['Content-Type' => 'application/json']);
+$r = request('POST', '/api/workout/log', json_encode(['workout_id' => $workoutId, 'duration' => 42]), ['Content-Type' => 'application/json']);
+check('api log without exercises 400', $r['status'] === 400, "got {$r['status']}");
+$r = request('POST', '/api/workout/log', $logPayload([['reps' => 8, 'unit' => 'lbs', 'load' => 80, 'rest_time' => 0]]), ['Content-Type' => 'application/json']);
+check('api log with unknown unit 400', $r['status'] === 400, "got {$r['status']}");
+$r = request('POST', '/api/workout/log', $logPayload([]), ['Content-Type' => 'application/json']);
+check('api log without done sets 400', $r['status'] === 400, "got {$r['status']}");
+
+$r = request('POST', '/api/workout/log', $logPayload([['reps' => 0, 'unit' => 'bw', 'load' => null, 'rest_time' => 0]]), ['Content-Type' => 'application/json']);
 check('api log with zero workload accepted', $r['status'] === 200);
 
 // --- logs page math -------------------------------------------------------
-$r = request('POST', '/api/workout/log', json_encode(['workout_id' => $workoutId, 'duration' => 30, 'workload' => 700, 'summary' => $summary]), ['Content-Type' => 'application/json']);
+$r = request('POST', '/api/workout/log', $logPayload([['reps' => 10, 'unit' => 'kg', 'load' => '80', 'rest_time' => 120]]), ['Content-Type' => 'application/json']);
 $r = request('GET', '/logs');
 check('logs page 200 with zero-workload entry', $r['status'] === 200, "got {$r['status']}");
 check('logs page shows first entry label', str_contains($r['body'], 'Erster Eintrag'));
 check('logs page shows new record label', str_contains($r['body'], 'Neuer Bestwert!'));
 check('logs page shows below-best percentage', str_contains($r['body'], '-100,0% vom Bestwert'));
 check('logs page renders structured set labels', str_contains($r['body'], '>80 kg<') && str_contains($r['body'], '>Körpergewicht<'));
+check('logs page shows per-exercise history', str_contains($r['body'], 'Verlauf (3)') && str_contains($r['body'], '8 × 80 kg, 12 × KG'));
 
 // --- cascade delete --------------------------------------------------------
 $r = request('POST', '/deleteWorkout', ['workout_id' => $workoutId]);
@@ -254,12 +308,13 @@ check('delete workout', $r['status'] === 303);
 check('exercises cascade-deleted', (int)db()->query("SELECT COUNT(*) FROM exercises WHERE workout_id=$workoutId")->fetchColumn() === 0);
 check('sets cascade-deleted', (int)db()->query("SELECT COUNT(*) FROM sets WHERE exercise_id=$exerciseId")->fetchColumn() === 0);
 check('logs survive workout deletion', (int)db()->query("SELECT COUNT(*) FROM workoutLog WHERE workout_id=$workoutId")->fetchColumn() === 3);
+check('logged sets survive workout deletion', (int)db()->query("SELECT COUNT(*) FROM logSets ls JOIN logExercises le ON le.id = ls.log_exercise_id JOIN workoutLog wl ON wl.id = le.log_id WHERE wl.workout_id=$workoutId")->fetchColumn() === 4);
 
 $r = request('GET', '/logs');
 check('logs of deleted workout still listed', $r['status'] === 200 && str_contains($r['body'], '>gelöscht<'));
 
 // --- schema state ----------------------------------------------------------
-check('schema version set', (int)db()->query('PRAGMA user_version')->fetchColumn() === 2);
+check('schema version set', (int)db()->query('PRAGMA user_version')->fetchColumn() === 3);
 check('sets table has no legacy column', !in_array('measure_unit', array_column(db()->query('PRAGMA table_info(sets)')->fetchAll(PDO::FETCH_ASSOC), 'name'), true));
 check('no orphan exercises', (int)db()->query('SELECT COUNT(*) FROM exercises WHERE workout_id NOT IN (SELECT id FROM workouts)')->fetchColumn() === 0);
 check('no orphan sets', (int)db()->query('SELECT COUNT(*) FROM sets WHERE exercise_id NOT IN (SELECT id FROM exercises)')->fetchColumn() === 0);

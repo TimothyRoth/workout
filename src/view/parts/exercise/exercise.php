@@ -10,7 +10,15 @@
         include __DIR__ . '/../set/set.php';
     } ?>
 
-    <button class="btn btn-ghost btn-block" type="button" data-dialog="add-sets-<?= e($exercise['id']) ?>"><?= icon('plus', 'icon-sm') ?> Sätze hinzufügen</button>
+    <div class="exercise-actions">
+        <button class="btn btn-ghost btn-block" type="button" data-dialog="add-sets-<?= e($exercise['id']) ?>"><?= icon('plus', 'icon-sm') ?> Sätze hinzufügen</button>
+        <?php if (!empty($exercise['sets'])) { $lastSet = $exercise['sets'][array_key_last($exercise['sets'])]; ?>
+            <form method="POST" action="/duplicateSet">
+                <input type="hidden" name="set_id" value="<?= e($lastSet['id']) ?>">
+                <button class="btn btn-ghost" type="submit" aria-label="Letzten Satz kopieren" title="Letzten Satz kopieren"><?= icon('copy', 'icon-sm') ?></button>
+            </form>
+        <?php } ?>
+    </div>
 
     <?php
     foreach ($exercise['sets'] as $set) {

@@ -11,6 +11,12 @@
         </label>
         <button class="btn btn-primary btn-block" type="submit">Speichern</button>
     </form>
+    <div class="sheet-actions">
+        <form method="POST" action="/duplicateWorkout">
+            <input type="hidden" name="workout_id" value="<?= e($workout['id']) ?>">
+            <button class="btn btn-ghost btn-block" type="submit"><?= icon('copy', 'icon-sm') ?> Workout duplizieren</button>
+        </form>
+    </div>
     <form class="sheet-footer" method="POST" action="/deleteWorkout" data-confirm="Workout „<?= e($workout['name']) ?>“ mit allen Übungen löschen? Das kann nicht rückgängig gemacht werden.">
         <input type="hidden" name="workout_id" value="<?= e($workout['id']) ?>">
         <button class="btn btn-danger btn-block" type="submit"><?= icon('trash', 'icon-sm') ?> Workout löschen</button>

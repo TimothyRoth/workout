@@ -85,6 +85,12 @@ class Controller
             Database::deleteWorkout($workout['id']);
             $this->utils->redirect('/');
         });
+
+        $this->router->map('POST', '/duplicateWorkout', function () {
+            $workout = $this->requireWorkout($this->request->int('workout_id'));
+            $newId = Database::duplicateWorkout($workout['id']);
+            $this->utils->redirect('/workout', ['workout_id' => $newId]);
+        });
     }
 
     // ---------------------------------------------------------------
@@ -111,6 +117,12 @@ class Controller
             $exercise = $this->requireExercise($this->request->int('exercise_id'));
             Database::deleteExercise($exercise['id']);
             $this->utils->redirect('/workout', ['workout_id' => $exercise['workout_id']]);
+        });
+
+        $this->router->map('POST', '/moveExercise', function () {
+            $exercise = $this->requireExercise($this->request->int('exercise_id'));
+            Database::moveExercise($exercise['id'], $this->direction());
+            $this->redirectToExercise($exercise['workout_id'], $exercise['id']);
         });
     }
 
@@ -145,6 +157,32 @@ class Controller
             Database::deleteSet($set['id']);
             $this->redirectToExercise($exercise['workout_id'], $exercise['id']);
         });
+
+        $this->router->map('POST', '/moveSet', function () {
+            $set = $this->requireSet($this->request->int('set_id'));
+            $exercise = $this->requireExercise($set['exercise_id']);
+
+            Database::moveSet($set['id'], $this->direction());
+            $this->redirectToExercise($exercise['workout_id'], $exercise['id']);
+        });
+
+        $this->router->map('POST', '/duplicateSet', function () {
+            $set = $this->requireSet($this->request->int('set_id'));
+            $exercise = $this->requireExercise($set['exercise_id']);
+
+            Database::duplicateSet($set['id']);
+            $this->redirectToExercise($exercise['workout_id'], $exercise['id']);
+        });
+    }
+
+    /** -1 for "up", +1 for "down". */
+    private function direction(): int
+    {
+        return match ($this->request->string('direction', 10)) {
+            'up' => -1,
+            'down' => 1,
+            default => throw HttpException::badRequest('Ungültige Richtung.'),
+        };
     }
 
     /**
@@ -168,30 +206,85 @@ class Controller
     {
         $this->router->map('GET', '/api/workout/[i:id]', function (string $id) {
             $workout = $this->requireWorkout((int)$id);
-            $this->utils->json(['status' => 'success', 'workout' => $workout]);
+            $this->utils->json([
+                'status' => 'success',
+                'workout' => $workout,
+                'last' => Database::getLastPerformance($workout['id']),
+            ]);
         });
 
         $this->router->map('POST', '/api/workout/log', function () {
             $workout = $this->requireWorkout($this->request->int('workout_id'));
             $duration = $this->request->int('duration', 0, 24 * 60);
-            $workload = $this->request->number('workload', 0, 1e9);
-            $summary = $this->request->raw('summary');
+            $exercises = $this->parseLoggedExercises($this->request->raw('exercises'));
 
-            if (is_string($summary)) {
-                $summary = json_decode($summary, true);
-            }
-            if (!is_array($summary) || !isset($summary['exercises']) || !is_array($summary['exercises'])) {
-                throw HttpException::badRequest('Zusammenfassung fehlt oder ist ungültig.');
-            }
-
-            $encoded = json_encode(['exercises' => array_values($summary['exercises'])], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
-            if (strlen($encoded) > 200_000) {
-                throw HttpException::badRequest('Zusammenfassung ist zu groß.');
-            }
-
-            $id = Database::addLog($workout['id'], $workload, $duration, $encoded);
+            $id = Database::addLog($workout['id'], $duration, $exercises);
             $this->utils->json(['status' => 'success', 'id' => $id]);
         });
+    }
+
+    /**
+     * Validate the session's result: a list of exercises, each with the sets
+     * that were actually done. Exercises without done sets are dropped.
+     *
+     * @return list<array{exercise_id:?int, name:string, sets:list<array{repetitions:int, unit:Unit, load:?float, rest_time:int}>}>
+     */
+    private function parseLoggedExercises(mixed $raw): array
+    {
+        if (!is_array($raw) || $raw === [] || count($raw) > 100) {
+            throw HttpException::badRequest('Keine Übungen übermittelt.');
+        }
+
+        $exercises = [];
+        foreach (array_values($raw) as $exercise) {
+            if (!is_array($exercise)) {
+                throw HttpException::badRequest('Übung ist ungültig.');
+            }
+            $name = trim(preg_replace('/\s+/u', ' ', (string)($exercise['name'] ?? '')) ?? '');
+            if ($name === '' || mb_strlen($name) > 100) {
+                throw HttpException::badRequest('Übungsname fehlt oder ist zu lang.');
+            }
+            $exerciseId = filter_var($exercise['exercise_id'] ?? null, FILTER_VALIDATE_INT);
+            $rawSets = $exercise['sets'] ?? null;
+            if (!is_array($rawSets) || count($rawSets) > 100) {
+                throw HttpException::badRequest("Sätze von „{$name}“ sind ungültig.");
+            }
+
+            $sets = [];
+            foreach ($rawSets as $set) {
+                if (!is_array($set)) {
+                    throw HttpException::badRequest("Satz von „{$name}“ ist ungültig.");
+                }
+                $reps = filter_var($set['reps'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0, 'max_range' => 10000]]);
+                $unit = Unit::tryFrom((string)($set['unit'] ?? ''));
+                $rest = filter_var($set['rest_time'] ?? 0, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0, 'max_range' => 3600]]);
+                if ($reps === false || $unit === null || $rest === false) {
+                    throw HttpException::badRequest("Satz von „{$name}“ hat ungültige Werte.");
+                }
+                $load = null;
+                if ($unit->needsLoad()) {
+                    $value = str_replace(',', '.', trim((string)($set['load'] ?? '')));
+                    if (!is_numeric($value) || (float)$value < 0 || (float)$value > $unit->maxLoad()) {
+                        throw HttpException::badRequest("Satz von „{$name}“ hat eine ungültige Last.");
+                    }
+                    $load = (float)$value;
+                }
+                $sets[] = ['repetitions' => $reps, 'unit' => $unit, 'load' => $load, 'rest_time' => $rest];
+            }
+
+            if ($sets !== []) {
+                $exercises[] = [
+                    'exercise_id' => $exerciseId === false ? null : $exerciseId,
+                    'name' => $name,
+                    'sets' => $sets,
+                ];
+            }
+        }
+
+        if ($exercises === []) {
+            throw HttpException::badRequest('Kein abgeschlossener Satz zum Speichern.');
+        }
+        return $exercises;
     }
 
     // ---------------------------------------------------------------
