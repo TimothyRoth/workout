@@ -39,6 +39,7 @@ function icon(string $name, string $class = ''): string
         'back'    => '<path d="M15 18l-6-6 6-6"/>',
         'chevron' => '<path d="M9 18l6-6-6-6"/>',
         'plus'    => '<path d="M12 5v14M5 12h14"/>',
+        'minus'   => '<path d="M5 12h14"/>',
         'close'   => '<path d="M6 6l12 12M6 18L18 6"/>',
         'edit'    => '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
         'play'    => '<path d="M7 4v16l13-8z" fill="currentColor" stroke="none"/>',
@@ -56,6 +57,20 @@ function icon(string $name, string $class = ''): string
         '<svg class="%s" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">%s</svg>',
         e($classes),
         $paths[$name] ?? ''
+    );
+}
+
+/**
+ * Wrap a numeric <input data-step="..."> in minus/plus buttons (see js/stepper.js).
+ */
+function stepper(string $input, string $class = ''): string
+{
+    return sprintf(
+        '<div class="%s"><button class="stepper-btn" type="button" data-step="-1" aria-label="Weniger" tabindex="-1">%s</button>%s<button class="stepper-btn" type="button" data-step="1" aria-label="Mehr" tabindex="-1">%s</button></div>',
+        e(trim('stepper ' . $class)),
+        icon('minus', 'icon-sm'),
+        $input,
+        icon('plus', 'icon-sm')
     );
 }
 
@@ -92,9 +107,10 @@ function unit_options(\App\Unit $selected): string
     $html = '';
     foreach (\App\Unit::cases() as $unit) {
         $html .= sprintf(
-            '<option value="%s" data-load-label="%s"%s>%s</option>',
+            '<option value="%s" data-load-label="%s" data-load-step="%s"%s>%s</option>',
             e($unit->value),
             e($unit->loadLabel() ?? ''),
+            e((string)$unit->loadStep()),
             $unit === $selected ? ' selected' : '',
             e($unit->label())
         );

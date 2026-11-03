@@ -7,8 +7,10 @@
 import {initDialogs, initConfirmations} from "app/dialogs";
 import {initSession} from "app/session";
 import {initUnitSelects} from "app/forms";
+import {initSteppers} from "app/stepper";
 
 initDialogs();
 initConfirmations();
 initUnitSelects();
+initSteppers();
 initSession();

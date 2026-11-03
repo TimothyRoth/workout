@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-visual">
     <meta name="color-scheme" content="dark">
     <meta name="theme-color" content="#0b1120">
     <meta name="mobile-web-app-capable" content="yes">

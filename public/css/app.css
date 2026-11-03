@@ -40,6 +40,7 @@
 
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --keyboard: 0px; /* height of the open phone keyboard, set by js/dialogs.js */
 }
 
 /* --------------------------------------------------------------------------
@@ -474,6 +475,87 @@ select.input {
     text-align: center;
 }
 
+/* Minus/plus stepper around a numeric input */
+
+.stepper {
+    display: flex;
+    align-items: stretch;
+    min-height: 48px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    transition: border-color .15s, box-shadow .15s;
+}
+
+.stepper:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.stepper .input {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    padding: 0 4px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    text-align: center;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.stepper .input:focus-visible {
+    box-shadow: none;
+}
+
+.stepper-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 42px;
+    padding: 0;
+    border: 0;
+    background: var(--surface-2);
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: background .15s, color .15s;
+}
+
+.stepper-btn:hover {
+    color: var(--text);
+}
+
+.stepper-btn:active {
+    background: var(--surface-3);
+    color: var(--text);
+}
+
+.stepper-lg {
+    min-height: 60px;
+}
+
+.stepper-lg .input {
+    font-size: 24px;
+    letter-spacing: -.02em;
+}
+
+.stepper-lg .stepper-btn {
+    width: 44px;
+}
+
+.stepper-lg .stepper-btn .icon {
+    width: 22px;
+    height: 22px;
+}
+
 /* --------------------------------------------------------------------------
    Sets table
    -------------------------------------------------------------------------- */
@@ -672,10 +754,12 @@ select.input {
 .sheet {
     width: 100%;
     max-width: 480px;
-    max-height: calc(100vh - 40px);
-    max-height: calc(100dvh - 40px);
-    margin: auto auto 0;
+    max-height: calc(100vh - 40px - var(--keyboard));
+    max-height: calc(100dvh - 40px - var(--keyboard));
+    margin: auto auto var(--keyboard); /* slides up above the phone keyboard */
     padding: 0;
+    overflow-y: auto; /* only scrolls when the keyboard leaves too little room */
+    transition: margin-bottom .2s ease-out, max-height .2s ease-out;
     border: 0;
     border-radius: 22px 22px 0 0;
     background: var(--surface);
@@ -699,10 +783,14 @@ select.input {
 }
 
 .sheet-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 10px 0 22px;
+    padding: 10px 10px 4px 22px;
+    background: var(--surface);
 }
 
 .sheet-header h2 {
@@ -715,7 +803,7 @@ select.input {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    padding: 12px 22px 8px;
+    padding: 8px 22px 8px;
 }
 
 .sheet-footer {
@@ -752,8 +840,9 @@ select.input {
 
 .session {
     position: fixed;
-    inset: 0;
+    inset: 0 0 var(--keyboard);
     z-index: 50;
+    transition: bottom .2s ease-out;
     overflow-y: auto;
     background: var(--bg);
     -webkit-overflow-scrolling: touch;
@@ -894,8 +983,9 @@ select.input {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: 0;
+    bottom: var(--keyboard);
     z-index: 60;
+    transition: bottom .2s ease-out;
     overflow: hidden;
     background: var(--surface-2);
     border-top: 1px solid var(--border);

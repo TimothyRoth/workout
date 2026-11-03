@@ -6,22 +6,23 @@
     <form class="sheet-body" method="POST" action="/addSet">
         <input type="hidden" name="exercise_id" value="<?= e($exercise['id']) ?>">
         <div class="grid-2">
-            <label class="field">
+            <label class="field" for="add-<?= e($exercise['id']) ?>-amount">
                 <span>Anzahl Sätze</span>
-                <input class="input" type="number" name="amount" min="1" max="10" value="3" inputmode="numeric" required>
+                <?= stepper('<input class="input" id="add-' . e($exercise['id']) . '-amount" type="number" name="amount" min="1" max="10" value="3" inputmode="numeric" data-step="1" required>') ?>
             </label>
-            <label class="field">
+            <label class="field" for="add-<?= e($exercise['id']) ?>-reps">
                 <span>Wiederholungen</span>
-                <input class="input" type="number" name="repetitions" min="0" max="10000" inputmode="numeric" required>
+                <?= stepper('<input class="input" id="add-' . e($exercise['id']) . '-reps" type="number" name="repetitions" min="0" max="10000" inputmode="numeric" data-step="1" value="10" required>') ?>
             </label>
-            <label class="field">
+            <label class="field" for="add-<?= e($exercise['id']) ?>-rest">
                 <span>Pause (s)</span>
-                <input class="input" type="number" name="rest_time" min="0" max="3600" inputmode="numeric" value="90" required>
+                <?= stepper('<input class="input" id="add-' . e($exercise['id']) . '-rest" type="number" name="rest_time" min="0" max="3600" inputmode="numeric" data-step="15" value="90" required>') ?>
             </label>
         </div>
         <?php
         $unit = \App\Unit::Kg;
         $load = null;
+        $fieldId = 'add-' . $exercise['id'];
         include __DIR__ . '/../set/loadFields.php';
         ?>
         <button class="btn btn-primary btn-block" type="submit"><?= icon('plus', 'icon-sm') ?> Hinzufügen</button>

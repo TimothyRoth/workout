@@ -15,6 +15,7 @@ const MAX_AGE_MS = 8 * 60 * 60 * 1000; // a cached session older than this is st
 
 const UNIT_SHORT = {kg: "kg", bw: "KG", s: "s", min: "min"};
 const LOAD_LABELS = {kg: "Gewicht (kg)", s: "Dauer (s)", min: "Dauer (min)"};
+const LOAD_STEPS = {kg: 2.5, s: 5, min: 1};
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
@@ -321,19 +322,31 @@ const renderSet = (set, e, s) => {
 const renderCurrent = set => `
     <div class="set-current">
         <div class="grid-2">
-            <label class="field">
+            <label class="field" for="cur-reps">
                 <span>Wiederholungen</span>
-                <input class="input input-lg" id="cur-reps" type="number" inputmode="numeric" min="0" value="${esc(set.reps ?? set.plannedReps)}">
+                ${stepper(`<input class="input input-lg" id="cur-reps" type="number" inputmode="numeric" min="0" data-step="1" value="${esc(set.reps ?? set.plannedReps)}">`)}
             </label>
             ${set.unit === "bw" ? "" : `
-            <label class="field">
+            <label class="field" for="cur-load">
                 <span>${esc(LOAD_LABELS[set.unit] ?? "Last")}</span>
-                <input class="input input-lg" id="cur-load" type="number" inputmode="decimal" min="0" step="any" value="${esc(set.load ?? set.plannedLoad ?? "")}">
+                ${stepper(`<input class="input input-lg" id="cur-load" type="number" inputmode="decimal" min="0" step="any" data-step="${LOAD_STEPS[set.unit] ?? 1}" value="${esc(set.load ?? set.plannedLoad ?? "")}">`)}
             </label>`}
         </div>
         <button class="btn btn-primary btn-block btn-lg" id="cur-done" type="button">${set.done ? "Übernehmen" : "Satz abschließen"}</button>
     </div>
 `;
+
+const stepper = input => `
+    <div class="stepper stepper-lg">
+        <button class="stepper-btn" type="button" data-step="-1" aria-label="Weniger" tabindex="-1">${minusIcon}</button>
+        ${input}
+        <button class="stepper-btn" type="button" data-step="1" aria-label="Mehr" tabindex="-1">${plusIcon}</button>
+    </div>
+`;
+
+const svg = path => `<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+const minusIcon = svg('<path d="M5 12h14"/>');
+const plusIcon = svg('<path d="M12 5v14M5 12h14"/>');
 
 const checkIcon = '<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
 

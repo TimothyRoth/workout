@@ -17,6 +17,7 @@ const applyUnit = select => {
     input.disabled = label === "";
     input.required = label !== "";
     if (label !== "") field.querySelector("[data-load-label]").textContent = label;
+    input.dataset.step = option?.dataset.loadStep || "1";
 };
 
 export const initUnitSelects = () => {

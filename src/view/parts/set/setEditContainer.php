@@ -6,18 +6,19 @@
     <form class="sheet-body" method="POST" action="/editSet">
         <input type="hidden" name="set_id" value="<?= e($set['id']) ?>">
         <div class="grid-2">
-            <label class="field">
+            <label class="field" for="set-<?= e($set['id']) ?>-reps">
                 <span>Wiederholungen</span>
-                <input class="input" type="number" name="repetitions" min="0" max="10000" inputmode="numeric" value="<?= e($set['repetitions']) ?>" required>
+                <?= stepper('<input class="input" id="set-' . e($set['id']) . '-reps" type="number" name="repetitions" min="0" max="10000" inputmode="numeric" data-step="1" value="' . e($set['repetitions']) . '" required>') ?>
             </label>
-            <label class="field">
+            <label class="field" for="set-<?= e($set['id']) ?>-rest">
                 <span>Pause (s)</span>
-                <input class="input" type="number" name="rest_time" min="0" max="3600" inputmode="numeric" value="<?= e($set['rest_time']) ?>" required>
+                <?= stepper('<input class="input" id="set-' . e($set['id']) . '-rest" type="number" name="rest_time" min="0" max="3600" inputmode="numeric" data-step="15" value="' . e($set['rest_time']) . '" required>') ?>
             </label>
         </div>
         <?php
         $unit = \App\Unit::tryFrom((string)$set['unit']) ?? \App\Unit::Kg;
         $load = $set['load'] === null ? null : (float)$set['load'];
+        $fieldId = 'set-' . $set['id'];
         include __DIR__ . '/loadFields.php';
         ?>
         <button class="btn btn-primary btn-block" type="submit">Speichern</button>

@@ -34,6 +34,17 @@ enum Unit: string
         };
     }
 
+    /** Increment of the load stepper buttons: a small plate, a few seconds, a minute. */
+    public function loadStep(): float
+    {
+        return match ($this) {
+            self::Kg => 2.5,
+            self::Seconds => 5,
+            self::Minutes => 1,
+            self::Bodyweight => 0,
+        };
+    }
+
     public function needsLoad(): bool
     {
         return $this !== self::Bodyweight;
