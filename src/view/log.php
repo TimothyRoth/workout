@@ -92,7 +92,7 @@ $classify = static function (array $log): array {
                                         <tr>
                                             <th class="num">#</th>
                                             <th>Wdh.</th>
-                                            <th>Einheit</th>
+                                            <th>Last</th>
                                             <th>Pause</th>
                                         </tr>
                                         </thead>
@@ -101,7 +101,7 @@ $classify = static function (array $log): array {
                                             <tr>
                                                 <td class="num"><?= $j + 1 ?></td>
                                                 <td><?= e($set['reps'] ?? '') ?></td>
-                                                <td class="unit"><?= e($set['measureUnit'] ?? '') ?></td>
+                                                <td class="unit"><?= e(log_set_label($set)) ?></td>
                                                 <td><?= e($set['breaktime'] ?? '') ?> s</td>
                                             </tr>
                                         <?php } ?>

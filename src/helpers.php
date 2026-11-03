@@ -80,3 +80,42 @@ function local_datetime(?string $utc, string $format = 'd.m.Y H:i'): string
         return $utc;
     }
 }
+
+/**
+ * <option> list for a unit select; each option carries the label of its load input.
+ */
+function unit_options(\App\Unit $selected): string
+{
+    $html = '';
+    foreach (\App\Unit::cases() as $unit) {
+        $html .= sprintf(
+            '<option value="%s" data-load-label="%s"%s>%s</option>',
+            e($unit->value),
+            e($unit->loadLabel() ?? ''),
+            $unit === $selected ? ' selected' : '',
+            e($unit->label())
+        );
+    }
+    return $html;
+}
+
+/**
+ * Display label for a planned set ("80 kg", "Körpergewicht", "60 s").
+ */
+function set_label(array $set): string
+{
+    $unit = \App\Unit::tryFrom((string)($set['unit'] ?? '')) ?? \App\Unit::Kg;
+    return $unit->format($set['load'] ?? null);
+}
+
+/**
+ * Display label for a set inside a log summary. Summaries written before
+ * schema v2 only carry the free-text "measureUnit"; show that unchanged.
+ */
+function log_set_label(array $set): string
+{
+    if (isset($set['unit'])) {
+        return set_label($set);
+    }
+    return (string)($set['measureUnit'] ?? '');
+}

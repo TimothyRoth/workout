@@ -13,6 +13,20 @@ const MAX_AGE_MS = 8 * 60 * 60 * 1000; // a cached session older than this is st
 
 const $ = id => document.getElementById(id);
 
+const LOAD_LABELS = {kg: "Gewicht (kg)", s: "Dauer (s)"};
+const UNIT_LABELS = {kg: "kg", bw: "Körpergewicht", s: "s"};
+
+const formatLoad = (unit, load) => {
+    if (unit === "bw") return UNIT_LABELS.bw;
+    const value = load === null || load === "" ? "–" : formatNumber(Number(load));
+    return `${value} ${UNIT_LABELS[unit] ?? unit}`;
+};
+
+const setWorkload = (unit, reps, load) => {
+    const r = parseInt(reps, 10) || 0;
+    return unit === "bw" ? r : r * (parseFloat(load) || 0);
+};
+
 let session = null;
 let breakRunning = false;
 
@@ -93,10 +107,11 @@ const build = async (workoutId, workoutUpdated) => {
             name: exercise.name,
             sets: exercise.sets.map(set => ({
                 plannedReps: set.repetitions,
-                plannedUnit: set.measure_unit,
+                plannedLoad: set.load,
+                unit: set.unit,
                 breaktime: parseInt(set.rest_time, 10) || 0,
                 reps: null,
-                measureUnit: null,
+                load: null,
             })),
         })),
     };
@@ -145,7 +160,11 @@ const renderCurrentSet = () => {
     $("session-set-index").textContent = session.setIndex + 1;
     $("session-set-total").textContent = exercise.sets.length;
     $("session-reps").value = set.reps ?? set.plannedReps;
-    $("session-unit").value = set.measureUnit ?? set.plannedUnit;
+
+    const needsLoad = set.unit !== "bw";
+    $("session-load-field").hidden = !needsLoad;
+    $("session-load-label").textContent = LOAD_LABELS[set.unit] ?? "Last";
+    $("session-load").value = needsLoad ? (set.load ?? set.plannedLoad ?? "") : "";
 };
 
 const onNext = async () => {
@@ -153,8 +172,8 @@ const onNext = async () => {
 
     const set = currentSet();
     set.reps = $("session-reps").value.trim();
-    set.measureUnit = $("session-unit").value.trim();
-    session.workload += (parseInt(set.reps, 10) || 0) * (parseFloat(set.measureUnit) || 0);
+    set.load = set.unit === "bw" ? null : $("session-load").value.trim();
+    session.workload += setWorkload(set.unit, set.reps, set.load);
 
     const lastExercise = session.exerciseIndex === session.exercises.length - 1;
     const lastSet = session.setIndex === currentExercise().sets.length - 1;
@@ -232,7 +251,8 @@ const performedExercises = () => session.exercises.map(exercise => ({
         .filter(set => set.reps !== null)
         .map(set => ({
             reps: set.reps,
-            measureUnit: set.measureUnit,
+            unit: set.unit,
+            load: set.load,
             breaktime: String(set.breaktime),
         })),
 }));
@@ -258,7 +278,7 @@ const exerciseBlock = exercise => {
     const table = document.createElement("table");
     table.className = "sets";
     const head = table.createTHead().insertRow();
-    ["#", "Wdh.", "Einheit", "Pause"].forEach((text, i) => {
+    ["#", "Wdh.", "Last", "Pause"].forEach((text, i) => {
         const th = document.createElement("th");
         th.textContent = text;
         if (i === 0) th.className = "num";
@@ -270,7 +290,7 @@ const exerciseBlock = exercise => {
         row.insertCell().textContent = String(i + 1);
         row.cells[0].className = "num";
         row.insertCell().textContent = set.reps ?? "";
-        row.insertCell().textContent = set.measureUnit ?? "";
+        row.insertCell().textContent = formatLoad(set.unit, set.load);
         row.insertCell().textContent = `${set.breaktime} s`;
     });
 

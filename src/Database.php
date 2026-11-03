@@ -7,7 +7,7 @@ use RuntimeException;
 
 class Database
 {
-    private const SCHEMA_VERSION = 1;
+    private const SCHEMA_VERSION = 2;
 
     private static ?PDO $connection = null;
 
@@ -55,6 +55,9 @@ class Database
         try {
             if ($version < 1) {
                 self::migrateToV1();
+            }
+            if ($version < 2) {
+                self::migrateToV2();
             }
             $db->exec('PRAGMA user_version = ' . self::SCHEMA_VERSION);
             $db->commit();
@@ -147,6 +150,55 @@ class Database
         $db->exec("CREATE INDEX IF NOT EXISTS idx_log_workout_created ON workoutLog(workout_id, created_at)");
     }
 
+    /**
+     * v2: the free-text measure_unit ("90kg", "Körpergewicht") becomes a
+     * unit enum plus a numeric load, and rest_time becomes an integer.
+     * SQLite cannot change column types in place, so the table is rebuilt.
+     */
+    private static function migrateToV2(): void
+    {
+        $db = self::$connection;
+
+        $db->exec("
+            CREATE TABLE sets_v2 (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                exercise_id INTEGER NOT NULL,
+                repetitions INTEGER NOT NULL DEFAULT 0,
+                unit TEXT NOT NULL DEFAULT 'kg' CHECK (unit IN ('kg', 'bw', 's')),
+                load REAL,
+                rest_time INTEGER NOT NULL DEFAULT 0,
+                position INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
+            )
+        ");
+
+        $insert = $db->prepare("
+            INSERT INTO sets_v2(id, exercise_id, repetitions, unit, load, rest_time, position, created_at, updated_at)
+            VALUES (:id, :exercise_id, :repetitions, :unit, :load, :rest_time, :position, :created_at, :updated_at)
+        ");
+
+        foreach ($db->query("SELECT * FROM sets ORDER BY id") as $row) {
+            [$unit, $load] = Unit::fromLegacy((string)($row['measure_unit'] ?? ''));
+            $insert->execute([
+                ':id' => $row['id'],
+                ':exercise_id' => $row['exercise_id'],
+                ':repetitions' => (int)($row['repetitions'] ?? 0),
+                ':unit' => $unit->value,
+                ':load' => $load,
+                ':rest_time' => (int)($row['rest_time'] ?? 0),
+                ':position' => (int)($row['position'] ?? $row['id']),
+                ':created_at' => $row['created_at'],
+                ':updated_at' => $row['updated_at'],
+            ]);
+        }
+
+        $db->exec("DROP TABLE sets");
+        $db->exec("ALTER TABLE sets_v2 RENAME TO sets");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_sets_exercise ON sets(exercise_id, position)");
+    }
+
     private static function columnExists(string $table, string $column): bool
     {
         foreach (self::$connection->query("PRAGMA table_info($table)") as $row) {
@@ -192,7 +244,7 @@ class Database
         $ids = array_column($workout['exercises'], 'id');
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $stmt = self::pdo()->prepare(
-            "SELECT id, exercise_id, repetitions, measure_unit, rest_time
+            "SELECT id, exercise_id, repetitions, unit, load, rest_time
              FROM sets WHERE exercise_id IN ($placeholders)
              ORDER BY exercise_id, position, id"
         );
@@ -285,18 +337,18 @@ class Database
 
     public static function getSet(int $id): ?array
     {
-        $stmt = self::pdo()->prepare("SELECT id, exercise_id, repetitions, measure_unit, rest_time FROM sets WHERE id = :id");
+        $stmt = self::pdo()->prepare("SELECT id, exercise_id, repetitions, unit, load, rest_time FROM sets WHERE id = :id");
         $stmt->execute([':id' => $id]);
         $row = $stmt->fetch();
         return $row === false ? null : $row;
     }
 
-    public static function addSets(int $exerciseId, int $amount, int $repetitions, string $measureUnit, string $restTime): void
+    public static function addSets(int $exerciseId, int $amount, int $repetitions, Unit $unit, ?float $load, int $restTime): void
     {
         $db = self::pdo();
         $stmt = $db->prepare(
-            "INSERT INTO sets(exercise_id, repetitions, measure_unit, rest_time, position)
-             VALUES(:exercise_id, :repetitions, :measure_unit, :rest_time,
+            "INSERT INTO sets(exercise_id, repetitions, unit, load, rest_time, position)
+             VALUES(:exercise_id, :repetitions, :unit, :load, :rest_time,
                     (SELECT COALESCE(MAX(position), 0) + 1 FROM sets WHERE exercise_id = :exercise_id))"
         );
 
@@ -306,7 +358,8 @@ class Database
                 $stmt->execute([
                     ':exercise_id' => $exerciseId,
                     ':repetitions' => $repetitions,
-                    ':measure_unit' => $measureUnit,
+                    ':unit' => $unit->value,
+                    ':load' => $unit->needsLoad() ? $load : null,
                     ':rest_time' => $restTime,
                 ]);
             }
@@ -318,16 +371,17 @@ class Database
         }
     }
 
-    public static function editSet(int $setId, int $repetitions, string $measureUnit, string $restTime): int
+    public static function editSet(int $setId, int $repetitions, Unit $unit, ?float $load, int $restTime): int
     {
         $stmt = self::pdo()->prepare(
             "UPDATE sets
-             SET repetitions = :repetitions, measure_unit = :measure_unit, rest_time = :rest_time, updated_at = CURRENT_TIMESTAMP
+             SET repetitions = :repetitions, unit = :unit, load = :load, rest_time = :rest_time, updated_at = CURRENT_TIMESTAMP
              WHERE id = :id"
         );
         $stmt->execute([
             ':repetitions' => $repetitions,
-            ':measure_unit' => $measureUnit,
+            ':unit' => $unit->value,
+            ':load' => $unit->needsLoad() ? $load : null,
             ':rest_time' => $restTime,
             ':id' => $setId,
         ]);

@@ -6,7 +6,9 @@
 
 import {initDialogs, initConfirmations} from "app/dialogs";
 import {initSession} from "app/session";
+import {initUnitSelects} from "app/forms";
 
 initDialogs();
 initConfirmations();
+initUnitSelects();
 initSession();

@@ -15,14 +15,15 @@
                 <input class="input" type="number" name="repetitions" min="0" max="10000" inputmode="numeric" required>
             </label>
             <label class="field">
-                <span>Einheit (z. B. 80 kg)</span>
-                <input class="input" type="text" name="measure_unit" maxlength="30" required>
-            </label>
-            <label class="field">
                 <span>Pause (s)</span>
                 <input class="input" type="number" name="rest_time" min="0" max="3600" inputmode="numeric" value="90" required>
             </label>
         </div>
+        <?php
+        $unit = \App\Unit::Kg;
+        $load = null;
+        include __DIR__ . '/../set/loadFields.php';
+        ?>
         <button class="btn btn-primary btn-block" type="submit"><?= icon('plus', 'icon-sm') ?> Hinzufügen</button>
     </form>
     <div class="sheet-footer"></div>

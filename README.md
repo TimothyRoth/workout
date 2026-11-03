@@ -23,6 +23,15 @@ php tests/smoke.php path/to/copy.db       # against a COPY of real data (it is m
 The smoke test boots the built-in server on a random port and checks routing,
 validation, origin checks, escaping, cascade deletes, the JSON API and the log page.
 
+## Data model
+
+A set is `repetitions` × a load. `sets.unit` is one of the `App\Unit` cases (`kg`,
+`bw` for bodyweight, `s` for seconds) and `sets.load` is the number that goes with it
+(kg or seconds, NULL for bodyweight). Workload per set is reps × load, or just reps for
+bodyweight. Schema v2 rebuilt the sets table from the old free-text `measure_unit`
+column; `Unit::fromLegacy()` holds the parsing rules. Log summaries written before v2
+still carry `measureUnit` as text and are displayed unchanged.
+
 ## Front end
 
 No build step. `public/css/app.css` is the whole design system (tokens on `:root`,

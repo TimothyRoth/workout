@@ -7,6 +7,7 @@ use App\Database;
 use App\Http\HttpException;
 use App\Http\Request;
 use App\Http\Security;
+use App\Unit;
 use App\Utils;
 
 class Controller
@@ -122,18 +123,18 @@ class Controller
         $this->router->map('POST', '/addSet', function () {
             $exercise = $this->requireExercise($this->request->int('exercise_id'));
             $amount = $this->request->int('amount', 1, self::MAX_SETS_PER_ADD);
-            [$reps, $unit, $rest] = $this->setFields();
+            [$reps, $unit, $load, $rest] = $this->setFields();
 
-            Database::addSets($exercise['id'], $amount, $reps, $unit, $rest);
+            Database::addSets($exercise['id'], $amount, $reps, $unit, $load, $rest);
             $this->redirectToExercise($exercise['workout_id'], $exercise['id']);
         });
 
         $this->router->map('POST', '/editSet', function () {
             $set = $this->requireSet($this->request->int('set_id'));
             $exercise = $this->requireExercise($set['exercise_id']);
-            [$reps, $unit, $rest] = $this->setFields();
+            [$reps, $unit, $load, $rest] = $this->setFields();
 
-            Database::editSet($set['id'], $reps, $unit, $rest);
+            Database::editSet($set['id'], $reps, $unit, $load, $rest);
             $this->redirectToExercise($exercise['workout_id'], $exercise['id']);
         });
 
@@ -147,14 +148,16 @@ class Controller
     }
 
     /**
-     * @return array{0:int,1:string,2:string} repetitions, measure unit, rest time in seconds
+     * @return array{0:int,1:Unit,2:?float,3:int} repetitions, unit, load (kg or seconds, null for bodyweight), rest time in seconds
      */
     private function setFields(): array
     {
         $reps = $this->request->int('repetitions', 0, 10000);
-        $unit = $this->request->string('measure_unit', 30);
-        $rest = (string)$this->request->int('rest_time', 0, 3600);
-        return [$reps, $unit, $rest];
+        /** @var Unit $unit */
+        $unit = $this->request->enum('unit', Unit::class);
+        $load = $unit->needsLoad() ? $this->request->number('load', 0, $unit->maxLoad()) : null;
+        $rest = $this->request->int('rest_time', 0, 3600);
+        return [$reps, $unit, $load, $rest];
     }
 
     // ---------------------------------------------------------------

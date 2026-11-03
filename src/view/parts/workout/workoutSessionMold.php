@@ -22,9 +22,9 @@
                     <span>Wiederholungen</span>
                     <input class="input input-lg" id="session-reps" name="reps" type="number" inputmode="numeric" min="0">
                 </label>
-                <label class="field">
-                    <span>Einheit</span>
-                    <input class="input input-lg" id="session-unit" name="measureUnit" type="text">
+                <label class="field" id="session-load-field">
+                    <span id="session-load-label">Gewicht (kg)</span>
+                    <input class="input input-lg" id="session-load" name="load" type="number" inputmode="decimal" min="0" step="any">
                 </label>
             </div>
             <button class="btn btn-primary btn-block btn-lg btn-next" type="button" id="session-next">

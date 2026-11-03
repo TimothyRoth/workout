@@ -17,6 +17,29 @@ $dbPath = $tmpDir . '/smoke.db';
 
 if (isset($argv[1])) {
     copy($argv[1], $dbPath) || exit("Could not copy {$argv[1]}\n");
+} else {
+    seedLegacyDatabase($dbPath);
+}
+
+/**
+ * A schema v1 database with free-text units, so the server has to run the v2 migration.
+ */
+function seedLegacyDatabase(string $path): void
+{
+    $pdo = new PDO('sqlite:' . $path, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    $pdo->exec("CREATE TABLE workouts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP)");
+    $pdo->exec("CREATE TABLE exercises (id INTEGER PRIMARY KEY AUTOINCREMENT, workout_id INTEGER NOT NULL, name TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP, position INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(workout_id) REFERENCES workouts(id) ON DELETE CASCADE)");
+    $pdo->exec("CREATE TABLE sets (id INTEGER PRIMARY KEY AUTOINCREMENT, exercise_id INTEGER NOT NULL, measure_unit TEXT NOT NULL, repetitions INTEGER, rest_time TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP, position INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(exercise_id) REFERENCES exercises(id) ON DELETE CASCADE)");
+    $pdo->exec("CREATE TABLE workoutLog (id INTEGER PRIMARY KEY AUTOINCREMENT, workout_id INTEGER NOT NULL, workload INTEGER NOT NULL, duration INTEGER NOT NULL, summary TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP, workout_name TEXT)");
+    $pdo->exec("INSERT INTO workouts(id, name) VALUES (1, 'Legacy')");
+    $pdo->exec("INSERT INTO exercises(id, workout_id, name, position) VALUES (1, 1, 'Altbestand', 1)");
+    $i = 0;
+    foreach (['90kg', '22,5 kg', 'Körpergewicht', '60 s', '2 min', 'Bänder'] as $unit) {
+        $i++;
+        $pdo->exec("INSERT INTO sets(exercise_id, measure_unit, repetitions, rest_time, position) VALUES (1, " . $pdo->quote($unit) . ", 8, '120', $i)");
+    }
+    $pdo->exec("INSERT INTO workoutLog(workout_id, workout_name, workload, duration, summary) VALUES (1, 'Legacy', 720, 30, '{\"exercises\":[{\"name\":\"Altbestand\",\"sets\":[{\"reps\":\"8\",\"measureUnit\":\"90kg\",\"breaktime\":\"120\"}]}]}')");
+    $pdo->exec("PRAGMA user_version = 1");
 }
 
 $port = 18000 + random_int(0, 999);
@@ -116,6 +139,18 @@ check('unknown workout 404', $r['status'] === 404, "got {$r['status']}");
 $r = request('GET', '/workout?workout_id=abc');
 check('non-numeric id 400', $r['status'] === 400, "got {$r['status']}");
 
+// --- v2 migration of legacy units (seeded data only) ----------------------
+if (!isset($argv[1])) {
+$migrated = db()->query("SELECT unit, load, rest_time FROM sets WHERE exercise_id = 1 ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
+$expected = [['kg', 90.0], ['kg', 22.5], ['bw', null], ['s', 60.0], ['s', 120.0], ['kg', null]];
+check('legacy units migrated to enum + load', array_map(fn($r) => [$r['unit'], $r['load'] === null ? null : (float)$r['load']], $migrated) === $expected, json_encode($migrated));
+check('legacy rest_time is now an integer', (int)$migrated[0]['rest_time'] === 120);
+$r = request('GET', '/workout?workout_id=1');
+check('legacy workout page renders migrated labels', $r['status'] === 200 && str_contains($r['body'], '22,5 kg') && str_contains($r['body'], 'Körpergewicht') && str_contains($r['body'], '60 s') && str_contains($r['body'], '– kg'));
+$r = request('GET', '/logs');
+check('legacy log summary still shows its free-text unit', $r['status'] === 200 && str_contains($r['body'], '>90kg<'));
+}
+
 // --- csrf -----------------------------------------------------------------
 $r = request('POST', '/addWorkout', ['workout_name' => 'evil'], ['Origin' => 'https://attacker.example']);
 check('foreign origin POST rejected', $r['status'] === 403, "got {$r['status']}");
@@ -142,19 +177,35 @@ $exerciseId = (int)db()->query("SELECT id FROM exercises WHERE workout_id=$worko
 check('add exercise redirects to anchor', $r['status'] === 303 && $r['location'] === "/workout?workout_id=$workoutId#exercise-$exerciseId", "loc {$r['location']}");
 check('exercise name trimmed', db()->query("SELECT name FROM exercises WHERE id=$exerciseId")->fetchColumn() === 'Bankdrücken');
 
-$r = request('POST', '/addSet', ['exercise_id' => $exerciseId, 'amount' => 3, 'repetitions' => 8, 'measure_unit' => '80kg', 'rest_time' => 120]);
+$r = request('POST', '/addSet', ['exercise_id' => $exerciseId, 'amount' => 3, 'repetitions' => 8, 'unit' => 'kg', 'load' => 80, 'rest_time' => 120]);
 check('add 3 sets', $r['status'] === 303 && (int)db()->query("SELECT COUNT(*) FROM sets WHERE exercise_id=$exerciseId")->fetchColumn() === 3);
 
-$r = request('POST', '/addSet', ['exercise_id' => $exerciseId, 'amount' => 500, 'repetitions' => 8, 'measure_unit' => '80kg', 'rest_time' => 120]);
+$r = request('POST', '/addSet', ['exercise_id' => $exerciseId, 'amount' => 500, 'repetitions' => 8, 'unit' => 'kg', 'load' => 80, 'rest_time' => 120]);
 check('amount above limit rejected', $r['status'] === 400, "got {$r['status']}");
 
-$r = request('POST', '/addSet', ['exercise_id' => $exerciseId, 'amount' => 1, 'repetitions' => 'abc', 'measure_unit' => '80kg', 'rest_time' => 120]);
+$r = request('POST', '/addSet', ['exercise_id' => $exerciseId, 'amount' => 1, 'repetitions' => 'abc', 'unit' => 'kg', 'load' => 80, 'rest_time' => 120]);
 check('non-numeric reps rejected with 400 (not 500)', $r['status'] === 400, "got {$r['status']}");
 
+$r = request('POST', '/addSet', ['exercise_id' => $exerciseId, 'amount' => 1, 'repetitions' => 8, 'unit' => 'lbs', 'load' => 80, 'rest_time' => 120]);
+check('unknown unit rejected', $r['status'] === 400, "got {$r['status']}");
+
+$r = request('POST', '/addSet', ['exercise_id' => $exerciseId, 'amount' => 1, 'repetitions' => 8, 'unit' => 'kg', 'rest_time' => 120]);
+check('kg without load rejected', $r['status'] === 400, "got {$r['status']}");
+
+$r = request('POST', '/addSet', ['exercise_id' => $exerciseId, 'amount' => 1, 'repetitions' => 12, 'unit' => 'bw', 'load' => 50, 'rest_time' => 60]);
+$bw = db()->query("SELECT unit, load FROM sets WHERE exercise_id=$exerciseId ORDER BY id DESC LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+check('bodyweight set ignores load', $r['status'] === 303 && $bw['unit'] === 'bw' && $bw['load'] === null, json_encode($bw));
+$bwId = (int)db()->query("SELECT id FROM sets WHERE exercise_id=$exerciseId ORDER BY id DESC LIMIT 1")->fetchColumn();
+request('POST', '/deleteSet', ['set_id' => $bwId]);
+
 $setId = (int)db()->query("SELECT id FROM sets WHERE exercise_id=$exerciseId ORDER BY id LIMIT 1")->fetchColumn();
-$r = request('POST', '/editSet', ['set_id' => $setId, 'repetitions' => 10, 'measure_unit' => '82.5kg', 'rest_time' => 90]);
+$r = request('POST', '/editSet', ['set_id' => $setId, 'repetitions' => 10, 'unit' => 'kg', 'load' => '82,5', 'rest_time' => 90]);
 $set = db()->query("SELECT * FROM sets WHERE id=$setId")->fetch(PDO::FETCH_ASSOC);
-check('edit set persists', $r['status'] === 303 && (int)$set['repetitions'] === 10 && $set['measure_unit'] === '82.5kg' && $set['rest_time'] === '90');
+check('edit set persists (decimal comma accepted)', $r['status'] === 303 && (int)$set['repetitions'] === 10 && $set['unit'] === 'kg' && (float)$set['load'] === 82.5 && (int)$set['rest_time'] === 90, json_encode($set));
+
+$r = request('POST', '/editSet', ['set_id' => $setId, 'repetitions' => 1, 'unit' => 's', 'load' => 45, 'rest_time' => 30]);
+$set = db()->query("SELECT unit, load FROM sets WHERE id=$setId")->fetch(PDO::FETCH_ASSOC);
+check('set can switch to seconds', $r['status'] === 303 && $set['unit'] === 's' && (float)$set['load'] === 45.0);
 
 $r = request('POST', '/deleteSet', ['set_id' => $setId]);
 check('delete set', $r['status'] === 303 && (int)db()->query("SELECT COUNT(*) FROM sets WHERE id=$setId")->fetchColumn() === 0);
@@ -163,17 +214,20 @@ $r = request('GET', "/workout?workout_id=$workoutId");
 check('workout page 200', $r['status'] === 200);
 check('workout page has stable exercise anchor', str_contains($r['body'], "id=\"exercise-$exerciseId\""));
 check('workout page escapes names', str_contains($r['body'], 'Smoke &lt;b&gt;Test&lt;/b&gt;'));
+check('workout page shows set labels', str_contains($r['body'], '>80 kg<'));
+check('workout page has unit selects', substr_count($r['body'], 'data-unit-select') >= 3);
 
 // --- api -------------------------------------------------------------------
 $r = request('GET', "/api/workout/$workoutId");
 $plan = json_decode($r['body'], true);
 check('api plan 200 json', $r['status'] === 200 && ($plan['status'] ?? '') === 'success');
 check('api plan nests sets', count($plan['workout']['exercises'][0]['sets'] ?? []) === 2);
+check('api plan exposes unit and load', ($plan['workout']['exercises'][0]['sets'][1]['unit'] ?? '') === 'kg' && (float)($plan['workout']['exercises'][0]['sets'][1]['load'] ?? 0) === 80.0);
 
 $r = request('GET', '/api/workout/999999');
 check('api unknown workout 404 json', $r['status'] === 404 && str_contains($r['body'], '"status":"error"'));
 
-$summary = ['exercises' => [['name' => 'Bankdrücken', 'sets' => [['reps' => '8', 'measureUnit' => '80kg', 'breaktime' => '120']]]]];
+$summary = ['exercises' => [['name' => 'Bankdrücken', 'sets' => [['reps' => '8', 'unit' => 'kg', 'load' => '80', 'breaktime' => '120'], ['reps' => '12', 'unit' => 'bw', 'load' => null, 'breaktime' => '60']]]]];
 $r = request('POST', '/api/workout/log', json_encode(['workout_id' => $workoutId, 'duration' => 42, 'workload' => 640.5, 'summary' => $summary]), ['Content-Type' => 'application/json']);
 check('api log 200', $r['status'] === 200, "got {$r['status']} {$r['body']}");
 $logId = (int)db()->query("SELECT id FROM workoutLog WHERE workout_id=$workoutId ORDER BY id DESC LIMIT 1")->fetchColumn();
@@ -192,6 +246,7 @@ check('logs page 200 with zero-workload entry', $r['status'] === 200, "got {$r['
 check('logs page shows first entry label', str_contains($r['body'], 'Erster Eintrag'));
 check('logs page shows new record label', str_contains($r['body'], 'Neuer Bestwert!'));
 check('logs page shows below-best percentage', str_contains($r['body'], '-100,0% vom Bestwert'));
+check('logs page renders structured set labels', str_contains($r['body'], '>80 kg<') && str_contains($r['body'], '>Körpergewicht<'));
 
 // --- cascade delete --------------------------------------------------------
 $r = request('POST', '/deleteWorkout', ['workout_id' => $workoutId]);
@@ -204,7 +259,8 @@ $r = request('GET', '/logs');
 check('logs of deleted workout still listed', $r['status'] === 200 && str_contains($r['body'], '>gelöscht<'));
 
 // --- schema state ----------------------------------------------------------
-check('schema version set', (int)db()->query('PRAGMA user_version')->fetchColumn() === 1);
+check('schema version set', (int)db()->query('PRAGMA user_version')->fetchColumn() === 2);
+check('sets table has no legacy column', !in_array('measure_unit', array_column(db()->query('PRAGMA table_info(sets)')->fetchAll(PDO::FETCH_ASSOC), 'name'), true));
 check('no orphan exercises', (int)db()->query('SELECT COUNT(*) FROM exercises WHERE workout_id NOT IN (SELECT id FROM workouts)')->fetchColumn() === 0);
 check('no orphan sets', (int)db()->query('SELECT COUNT(*) FROM sets WHERE exercise_id NOT IN (SELECT id FROM exercises)')->fetchColumn() === 0);
 

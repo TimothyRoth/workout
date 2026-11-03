@@ -79,6 +79,23 @@ class Request
         return $float;
     }
 
+    /**
+     * Value of a string-backed enum.
+     *
+     * @template T of \BackedEnum
+     * @param class-string<T> $enumClass
+     * @return T
+     */
+    public function enum(string $key, string $enumClass): \BackedEnum
+    {
+        $value = $this->raw($key);
+        $case = is_string($value) ? $enumClass::tryFrom(trim($value)) : null;
+        if ($case === null) {
+            throw HttpException::badRequest("Feld „{$key}“ hat einen ungültigen Wert.");
+        }
+        return $case;
+    }
+
     public function string(string $key, int $maxLength = 100, bool $required = true): string
     {
         $value = $this->raw($key);
