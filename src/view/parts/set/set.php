@@ -9,15 +9,13 @@
     </thead>
     <tbody>
     <?php foreach ($exercise['sets'] as $set) { ?>
-        <tr>
-            <td><?= htmlspecialchars($set['repetitions']) ?></td>
-            <td><?= htmlspecialchars($set['measure_unit']) ?></td>
-            <td><?= htmlspecialchars($set['rest_time']) ?></td>
+        <tr data-set-id="<?= e($set['id']) ?>">
+            <td><?= e($set['repetitions']) ?></td>
+            <td><?= e($set['measure_unit']) ?></td>
+            <td><?= e($set['rest_time']) ?></td>
             <td>
-                <div class="editButton" data-target="edit-set-<?= $set['id'] ?>">
-                    <img class="icon edit-icon"
-                         src="/img/edit.svg"
-                         alt="edit-icon"/>
+                <div class="editButton" data-target="edit-set-<?= e($set['id']) ?>">
+                    <img class="icon edit-icon" src="/img/edit.svg" alt="bearbeiten"/>
                 </div>
             </td>
         </tr>

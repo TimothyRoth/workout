@@ -4,209 +4,214 @@ namespace App\controller;
 
 use AltoRouter;
 use App\Database;
+use App\Http\HttpException;
+use App\Http\Request;
+use App\Http\Security;
 use App\Utils;
-use Throwable;
 
 class Controller
 {
+    private const MAX_SETS_PER_ADD = 10;
+
     public function __construct(
-        private Utils       $utils = new Utils(),
-        private AltoRouter  $router = new AltoRouter()
-    )
-    {
+        private Utils      $utils = new Utils(),
+        private Request    $request = new Request(),
+        private AltoRouter $router = new AltoRouter(),
+    ) {
     }
 
-    /**
-     * @throws \Exception
-     */
     public function run(): void
     {
-        $this->router->map('GET', '/', function () {
-            $workouts = Database::getWorkouts();
-            $this->utils->renderView('frontpage', $workouts);
-        });
+        Security::sendDefaultHeaders();
+        Security::assertSameOrigin($this->request);
 
-        $this->router->map('GET', '/logs', function () {
-            $this->utils->renderView('log', Database::getLogs());
-        });
-
-        $this->router->map('GET', '/workout', function () {
-            $workoutId = $this->utils->getHttpQueryParam('workout_id');
-
-            if ($this->utils->nullChecker([$workoutId])) {
-                $workout = Database::getWorkout($workoutId);
-                $exercises = Database::getExercises($workoutId);
-
-                foreach ($exercises as $index => $exercise) {
-                    $exercises[$index]['sets'] = Database::getSets($exercise['id']);
-                }
-
-                $params = [
-                    'workout' => $workout,
-                    'exercises' => $exercises
-                ];
-
-                $this->utils->renderView('workout', $params);
-            } else {
-                $this->utils->render400();
-            }
-        });
-
-        $this->router->map('POST', '/addWorkout', function () {
-            $name = $this->utils->getHttpQueryParam('workout_name');
-
-            if ($this->utils->nullChecker([$name])) {
-                Database::addWorkout($name);
-                $this->utils->redirect("/");
-            } else {
-                $this->utils->render400();
-            }
-        });
-
-        $this->router->map('POST', '/deleteWorkout', function () {
-            $workoutId = $this->utils->getHttpQueryParam('workout_id');
-
-            if ($this->utils->nullChecker([$workoutId])) {
-                Database::deleteWorkout($workoutId);
-                $this->utils->redirect("/");
-            } else {
-                $this->utils->render400();
-            }
-        });
-
-        $this->router->map('POST', '/editWorkout', function () {
-            $name = $this->utils->getHttpQueryParam('workout_name');
-            $workoutId = $this->utils->getHttpQueryParam('workout_id');
-
-            if ($this->utils->nullChecker([$name, $workoutId])) {
-                Database::editWorkout($workoutId, $name);
-                $this->utils->redirect("/");
-            } else {
-                $this->utils->render400();
-            }
-        });
-
-        $this->router->map('POST', '/addSet', function () {
-            $workoutId = $this->utils->getHttpQueryParam('workout_id');
-            $exerciseId = $this->utils->getHttpQueryParam('exercise_id');
-            $exerciseName = $this->utils->getHttpQueryParam('exercise_name');
-            $restTime = $this->utils->getHttpQueryParam('rest_time');
-            $repetitions = $this->utils->getHttpQueryParam('repetitions');
-            $measureUnit = $this->utils->getHttpQueryParam('measure_unit');
-            $amount = $this->utils->getHttpQueryParam('amount');
-
-            if ($this->utils->nullChecker([$workoutId, $exerciseId, $exerciseName, $restTime, $measureUnit, $amount, $repetitions])) {
-                for ($i = 0; $i < $amount; $i++) {
-                    Database::addSet($exerciseId, $repetitions, $measureUnit, $restTime);
-                }
-
-                $this->utils->redirect("/workout", ['workout_id' => $workoutId], $exerciseName);
-            } else {
-                $this->utils->render400();
-            }
-        });
-
-        $this->router->map('POST', '/editSet', function () {
-            $workoutId = $this->utils->getHttpQueryParam('workout_id');
-            $exerciseName = $this->utils->getHttpQueryParam('exercise_name');
-            $setId = $this->utils->getHttpQueryParam('set_id');
-            $restTime = $this->utils->getHttpQueryParam('rest_time');
-            $repetitions = $this->utils->getHttpQueryParam('repetitions');
-            $measureUnit = $this->utils->getHttpQueryParam('measure_unit');
-
-            if ($this->utils->nullChecker([$workoutId, $exerciseName, $setId, $restTime, $measureUnit, $repetitions])) {
-                Database::editSet($setId, $repetitions, $measureUnit, $restTime);
-                $this->utils->redirect("/workout", ['workout_id' => $workoutId], $exerciseName);
-            } else {
-                $this->utils->render400();
-            }
-        });
-
-        $this->router->map('POST', '/deleteSet', function () {
-            $workoutId = $this->utils->getHttpQueryParam('workout_id');
-            $exerciseName = $this->utils->getHttpQueryParam('exercise_name');
-            $setId = $this->utils->getHttpQueryParam('set_id');
-
-            if ($this->utils->nullChecker([$workoutId, $exerciseName, $setId])) {
-                Database::deleteSet($setId);
-                $this->utils->redirect("/workout", ['workout_id' => $workoutId], $exerciseName);
-            } else {
-                $this->utils->render400();
-            }
-
-        });
-
-        $this->router->map('POST', '/addExercise', function () {
-            $exerciseName = $this->utils->getHttpQueryParam('exercise_name');
-            $workoutId = $this->utils->getHttpQueryParam('workout_id');
-
-            if ($this->utils->nullChecker([$workoutId, $exerciseName])) {
-                Database::addExercise($exerciseName, $workoutId);
-                $this->utils->redirect("/workout", ['workout_id' => $workoutId], $exerciseName);
-            } else {
-                $this->utils->render400();
-            }
-        });
-
-        $this->router->map('POST', '/deleteExercise', function () {
-            $workoutId = $this->utils->getHttpQueryParam('workout_id');
-            $exerciseId = $this->utils->getHttpQueryParam('exercise_id');
-
-            if ($this->utils->nullChecker([$workoutId, $exerciseId])) {
-                Database::deleteExercise($exerciseId);
-                $this->utils->redirect("/workout", ['workout_id' => $workoutId]);
-            } else {
-                $this->utils->render400();
-            }
-        });
-
-        $this->router->map('POST', '/editExercise', function () {
-            $workoutId = $this->utils->getHttpQueryParam('workout_id');
-            $exerciseName = $this->utils->getHttpQueryParam('exercise_name');
-            $exerciseId = $this->utils->getHttpQueryParam('exercise_id');
-
-            if ($this->utils->nullChecker([$workoutId, $exerciseName, $exerciseId])) {
-                Database::editExercise($exerciseId, $exerciseName);
-                $this->utils->redirect("/workout", ['workout_id' => $workoutId], $exerciseName);
-            } else {
-                $this->utils->render400();
-            }
-        });
-
-        $this->router->map('POST', '/api/workout/log', function () {
-            try {
-                $data = json_decode(file_get_contents('php://input'), true, 512, JSON_THROW_ON_ERROR);
-
-                $workoutId = $data['workout_id'] ?? null;
-                $duration = $data['duration'] ?? null;
-                $workload = $data['workload'] ?? null;
-                $summary = $data['summary'] ?? null;
-
-                if ($this->utils->nullChecker([$workoutId, $duration, $workload, $summary])) {
-                    Database::addLog($workoutId, $workload, $duration, $summary);
-                    header('Content-Type: application/json');
-                    echo json_encode(['status' => 'success'], JSON_THROW_ON_ERROR);
-                    exit;
-                }
-
-                header('Content-Type: application/json', true, 400);
-                echo json_encode(['status' => 'error', 'message' => 'Invalid input'], JSON_THROW_ON_ERROR);
-                exit;
-
-            } catch (Throwable $e) {
-                header($_SERVER["SERVER_PROTOCOL"] . ' 500 Internal Server Error');
-                echo $e->getMessage();
-                exit;
-            }
-        });
+        $this->mapPages();
+        $this->mapWorkoutActions();
+        $this->mapExerciseActions();
+        $this->mapSetActions();
+        $this->mapApi();
 
         $match = $this->router->match();
 
-        if ($match && is_callable($match['target'])) {
-            call_user_func_array($match['target'], $match['params']);
-        } else {
-            $this->utils->render404();
+        if ($match === false || !is_callable($match['target'])) {
+            throw HttpException::notFound('Diese Seite gibt es nicht.');
         }
+
+        call_user_func_array($match['target'], $match['params']);
     }
 
+    // ---------------------------------------------------------------
+    // Pages
+    // ---------------------------------------------------------------
+
+    private function mapPages(): void
+    {
+        $this->router->map('GET', '/', function () {
+            $this->utils->renderView('frontpage', ['workouts' => Database::getWorkouts()]);
+        });
+
+        $this->router->map('GET', '/logs', function () {
+            $this->utils->renderView('log', ['logs' => Database::getLogs()]);
+        });
+
+        $this->router->map('GET', '/workout', function () {
+            $workout = $this->requireWorkout($this->request->int('workout_id'));
+            $this->utils->renderView('workout', ['workout' => $workout]);
+        });
+    }
+
+    // ---------------------------------------------------------------
+    // Workouts
+    // ---------------------------------------------------------------
+
+    private function mapWorkoutActions(): void
+    {
+        $this->router->map('POST', '/addWorkout', function () {
+            $name = $this->request->string('workout_name');
+            Database::addWorkout($name);
+            $this->utils->redirect('/');
+        });
+
+        $this->router->map('POST', '/editWorkout', function () {
+            $workout = $this->requireWorkout($this->request->int('workout_id'));
+            $name = $this->request->string('workout_name');
+            Database::editWorkout($workout['id'], $name);
+            $this->utils->redirect('/');
+        });
+
+        $this->router->map('POST', '/deleteWorkout', function () {
+            $workout = $this->requireWorkout($this->request->int('workout_id'));
+            Database::deleteWorkout($workout['id']);
+            $this->utils->redirect('/');
+        });
+    }
+
+    // ---------------------------------------------------------------
+    // Exercises
+    // ---------------------------------------------------------------
+
+    private function mapExerciseActions(): void
+    {
+        $this->router->map('POST', '/addExercise', function () {
+            $workout = $this->requireWorkout($this->request->int('workout_id'));
+            $name = $this->request->string('exercise_name');
+            $exerciseId = Database::addExercise($name, $workout['id']);
+            $this->redirectToExercise($workout['id'], $exerciseId);
+        });
+
+        $this->router->map('POST', '/editExercise', function () {
+            $exercise = $this->requireExercise($this->request->int('exercise_id'));
+            $name = $this->request->string('exercise_name');
+            Database::editExercise($exercise['id'], $name);
+            $this->redirectToExercise($exercise['workout_id'], $exercise['id']);
+        });
+
+        $this->router->map('POST', '/deleteExercise', function () {
+            $exercise = $this->requireExercise($this->request->int('exercise_id'));
+            Database::deleteExercise($exercise['id']);
+            $this->utils->redirect('/workout', ['workout_id' => $exercise['workout_id']]);
+        });
+    }
+
+    // ---------------------------------------------------------------
+    // Sets
+    // ---------------------------------------------------------------
+
+    private function mapSetActions(): void
+    {
+        $this->router->map('POST', '/addSet', function () {
+            $exercise = $this->requireExercise($this->request->int('exercise_id'));
+            $amount = $this->request->int('amount', 1, self::MAX_SETS_PER_ADD);
+            [$reps, $unit, $rest] = $this->setFields();
+
+            Database::addSets($exercise['id'], $amount, $reps, $unit, $rest);
+            $this->redirectToExercise($exercise['workout_id'], $exercise['id']);
+        });
+
+        $this->router->map('POST', '/editSet', function () {
+            $set = $this->requireSet($this->request->int('set_id'));
+            $exercise = $this->requireExercise($set['exercise_id']);
+            [$reps, $unit, $rest] = $this->setFields();
+
+            Database::editSet($set['id'], $reps, $unit, $rest);
+            $this->redirectToExercise($exercise['workout_id'], $exercise['id']);
+        });
+
+        $this->router->map('POST', '/deleteSet', function () {
+            $set = $this->requireSet($this->request->int('set_id'));
+            $exercise = $this->requireExercise($set['exercise_id']);
+
+            Database::deleteSet($set['id']);
+            $this->redirectToExercise($exercise['workout_id'], $exercise['id']);
+        });
+    }
+
+    /**
+     * @return array{0:int,1:string,2:string} repetitions, measure unit, rest time in seconds
+     */
+    private function setFields(): array
+    {
+        $reps = $this->request->int('repetitions', 0, 10000);
+        $unit = $this->request->string('measure_unit', 30);
+        $rest = (string)$this->request->int('rest_time', 0, 3600);
+        return [$reps, $unit, $rest];
+    }
+
+    // ---------------------------------------------------------------
+    // JSON API (used by the training session)
+    // ---------------------------------------------------------------
+
+    private function mapApi(): void
+    {
+        $this->router->map('GET', '/api/workout/[i:id]', function (string $id) {
+            $workout = $this->requireWorkout((int)$id);
+            $this->utils->json(['status' => 'success', 'workout' => $workout]);
+        });
+
+        $this->router->map('POST', '/api/workout/log', function () {
+            $workout = $this->requireWorkout($this->request->int('workout_id'));
+            $duration = $this->request->int('duration', 0, 24 * 60);
+            $workload = $this->request->number('workload', 0, 1e9);
+            $summary = $this->request->raw('summary');
+
+            if (is_string($summary)) {
+                $summary = json_decode($summary, true);
+            }
+            if (!is_array($summary) || !isset($summary['exercises']) || !is_array($summary['exercises'])) {
+                throw HttpException::badRequest('Zusammenfassung fehlt oder ist ungültig.');
+            }
+
+            $encoded = json_encode(['exercises' => array_values($summary['exercises'])], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+            if (strlen($encoded) > 200_000) {
+                throw HttpException::badRequest('Zusammenfassung ist zu groß.');
+            }
+
+            $id = Database::addLog($workout['id'], $workload, $duration, $encoded);
+            $this->utils->json(['status' => 'success', 'id' => $id]);
+        });
+    }
+
+    // ---------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------
+
+    private function requireWorkout(int $id): array
+    {
+        return Database::getWorkoutPlan($id) ?? throw HttpException::notFound('Workout nicht gefunden.');
+    }
+
+    private function requireExercise(int $id): array
+    {
+        return Database::getExercise($id) ?? throw HttpException::notFound('Übung nicht gefunden.');
+    }
+
+    private function requireSet(int $id): array
+    {
+        return Database::getSet($id) ?? throw HttpException::notFound('Satz nicht gefunden.');
+    }
+
+    private function redirectToExercise(int $workoutId, int $exerciseId): void
+    {
+        $this->utils->redirect('/workout', ['workout_id' => $workoutId], 'exercise-' . $exerciseId);
+    }
 }

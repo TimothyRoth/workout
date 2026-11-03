@@ -1,11 +1,6 @@
 <?php
+
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../config.php';
 
-use App\Application;
-
-try {
-    Application::run();
-} catch (Exception $e) {
-    syslog(LOG_ERR, $e->getMessage());
-}
+App\Application::run();

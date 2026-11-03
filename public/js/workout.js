@@ -1,436 +1,398 @@
-let workout = {};
-let buttonDisabled = false;
+/**
+ * Workout tracker front-end.
+ *
+ * Page helpers (edit modals, delete confirmation, accordions) and the
+ * training session. The session loads its plan from the JSON API, keeps
+ * its progress in localStorage so an interrupted session can be resumed,
+ * and posts a structured summary when finished.
+ */
+
+const SESSION_STORAGE_KEY = "activeWorkout";
+const SESSION_MAX_AGE_MS = 8 * 60 * 60 * 1000; // a cached session older than this is stale
 
 document.addEventListener("DOMContentLoaded", () => {
-    editContainer();
-    deleteAction();
-    initAccordion();
+    initEditContainers();
+    initDeleteConfirmations();
+    initAccordions();
     initWorkoutSession();
 });
 
-const editContainer = () => {
-    const buttons = document.querySelectorAll(".editButton");
-    const body = document.querySelector("body");
-    buttons.forEach(button => {
+// ---------------------------------------------------------------------
+// Page helpers
+// ---------------------------------------------------------------------
+
+const initEditContainers = () => {
+    const body = document.body;
+
+    document.querySelectorAll(".editButton").forEach(button => {
         button.addEventListener("click", () => {
-            const target = button.dataset.target;
-            const container = document.getElementById(target);
+            const container = document.getElementById(button.dataset.target);
+            if (!container) return;
 
-            if (container) {
-                container.classList.add("active");
-                body.classList.add("no-scroll");
+            container.classList.add("active");
+            body.classList.add("no-scroll");
 
-                container.querySelector(".close").addEventListener("click", () => {
-                    container.classList.remove("active");
-                    body.classList.remove("no-scroll");
-                }, {once: true})
+            const firstField = container.querySelector("input:not([type=hidden]):not([type=image])");
+            if (firstField) firstField.focus();
 
-                const saveButton = container.querySelector(".saveButton");
+            container.querySelector(".close")?.addEventListener("click", () => {
+                container.classList.remove("active");
+                body.classList.remove("no-scroll");
+            }, {once: true});
+        });
+    });
 
-                if (saveButton && !saveButton.classList.contains("active")) {
-                    const inputFields = container.querySelectorAll("input");
-                    inputFields.forEach(input => {
+    // Reveal the save button once any field differs from its initial value.
+    document.querySelectorAll(".edit-container").forEach(container => {
+        const saveButton = container.querySelector(".saveButton");
+        if (!saveButton) return;
 
-                        const previousValue = input.value;
+        const fields = [...container.querySelectorAll("input:not([type=hidden]):not([type=image])")];
+        const initial = new Map(fields.map(field => [field, field.value]));
+        const update = () => {
+            const dirty = fields.some(field => field.value !== initial.get(field));
+            saveButton.classList.toggle("active", dirty);
+        };
+        fields.forEach(field => field.addEventListener("input", update));
+    });
+};
 
-                        input.addEventListener("change", () => {
-
-                            if (input.value !== previousValue) {
-                                saveButton.classList.add("active");
-                            } else {
-                                saveButton.classList.remove("active");
-                            }
-
-                        })
-                    })
-                }
-            }
-        })
-    })
-}
-
-const deleteAction = () => {
-    const buttons = document.querySelectorAll(".deleteButton");
-
-    buttons.forEach(button => {
-        button.addEventListener("click", (event) => {
-            event.preventDefault(); // stop the form from submitting immediately
-
-            // Simple browser confirmation dialog
-            const confirmed = confirm("Das Löschen ist unwiderruflich. Bist du sicher?");
-
-            if (confirmed) {
-                // If the button is inside a form, submit it programmatically
-                const form = button.closest("form");
-                if (form) {
-                    form.submit();
-                }
+const initDeleteConfirmations = () => {
+    document.querySelectorAll(".deleteButton").forEach(button => {
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            if (confirm("Das Löschen ist unwiderruflich. Bist du sicher?")) {
+                button.closest("form")?.submit();
             }
         });
     });
 };
+
+const initAccordions = () => {
+    document.querySelectorAll(".trigger-accordion").forEach(accordion => {
+        const trigger = accordion.querySelector(".trigger");
+        const container = accordion.querySelector(".trigger-container");
+        if (!trigger || !container) return;
+
+        trigger.addEventListener("click", () => {
+            const open = !container.classList.contains("active");
+            container.classList.toggle("active", open);
+            accordion.classList.toggle("active", open);
+        });
+    });
+};
+
+// ---------------------------------------------------------------------
+// Wake lock (keeps the screen on during a session)
+// ---------------------------------------------------------------------
 
 let wakeLock = null;
 
 const requestWakeLock = async () => {
-    if (!('wakeLock' in navigator)) return
-    if (wakeLock !== null) return;
-
+    if (!("wakeLock" in navigator) || wakeLock !== null) return;
     try {
-        wakeLock = await navigator.wakeLock.request('screen')
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release", () => { wakeLock = null; });
     } catch {
-        console.info('No wakelock available on this browser.')
+        console.info("Wake lock not available.");
     }
-}
+};
+
+// ---------------------------------------------------------------------
+// Training session
+// ---------------------------------------------------------------------
+
+let session = null;
+let view = null;
+let breakRunning = false;
 
 const initWorkoutSession = () => {
-    const button = document.querySelector(".startWorkout");
-    const body = document.querySelector("body");
+    const startButton = document.querySelector(".startWorkout");
+    if (!startButton) return;
 
-    if (button) {
-        button.addEventListener("click", async () => {
-
-            const {error, message} = initWorkout();
-
-            if(error) {
-                alert(message);
-                return;
-            }
-
-            body.classList.add("no-scroll");
-            initView()
-            startProgress();
-            await requestWakeLock();
-
-            document.addEventListener('visibilitychange', async () => {
-                if (document.visibilityState === 'visible') {
-                    await requestWakeLock();
-                }
-            })
-        });
-    }
-};
-
-const cacheCurrentWorkoutData = () => {
-    localStorage.setItem(
-        "activeWorkout", JSON.stringify(workout)
-    )
-}
-
-const clearCache = () => {
-    localStorage.clear();
-}
-
-const loadCache = () => {
-    const strWorkout = localStorage.getItem("activeWorkout");
-    return JSON.parse(strWorkout) ?? null;
-}
-
-const initWorkout = () => {
-    workout.id = document.querySelector("input[name='workout_id']").value;
-
-    //here we have to play with the cached workout.
-    const activeWorkout = loadCache();
-
-    if (activeWorkout !== null && activeWorkout.id === workout.id) {
-        const confirmContinueWorkout = confirm("Möchtest du das Workout fortsetzen?")
-
-        if (confirmContinueWorkout) {
-            workout = activeWorkout;
-            return {
-                error: false
-            };
+    startButton.addEventListener("click", async () => {
+        startButton.style.pointerEvents = "none";
+        try {
+            await startSession(startButton.dataset.workoutId, startButton.dataset.workoutUpdated);
+        } catch (error) {
+            console.error(error);
+            alert(error.message || "Das Workout konnte nicht gestartet werden.");
+        } finally {
+            startButton.style.pointerEvents = "";
         }
-    }
-
-    return parseWorkoutMetaFromDom();
-
-};
-
-const parseWorkoutMetaFromDom = () => {
-    workout.name = document.querySelector("h3").innerText;
-    workout.startTime = Date.now();
-    workout.exerciseIndex = 0;
-    workout.setIndex = 0;
-
-    const exercises = document.querySelectorAll(".exercise");
-
-    if (exercises.length === 0) {
-        return {
-            error: true,
-            message: "Bitte füge dem Workout mindestens eine Übung hinzu bevor du es startest."
-        };
-    }
-
-    workout.exercises = [];
-
-    for (let [index, exercise] of [...exercises].entries()) {
-
-        const sets = exercise.querySelectorAll("table tbody tr");
-
-        if (sets.length === 0) {
-            return {
-                error: true,
-                message: "Bitte füge jeder Übung mindestens einen Satz hinzu bevor du das Workout startest."
-            };
-        }
-
-        const exerciseData = {
-            name: exercise.querySelector(".exerciseName").innerText,
-            sets: []
-        };
-
-        for (let set of sets) {
-            exerciseData.sets.push({
-                reps: set.querySelectorAll("td")[0].innerText,
-                measureUnit: set.querySelectorAll("td")[1].innerText,
-                breaktime: set.querySelectorAll("td")[2].innerText,
-            });
-        }
-
-        workout.exercises.push(exerciseData);
-    }
-
-    return { error: false };
-};
-
-const initView = () => {
-    workout.view = document.querySelector(".workoutSessionView");
-    workout.view.classList.add("active");
-    workout.view.querySelector("#workoutName").innerText = workout.name;
-    workout.view.querySelector("#startTime").innerText = new Date(workout.startTime).toLocaleString("de-DE");
-}
-const startProgress = () => {
-    proceed();
-    next();
-}
-
-const proceed = () => {
-    workout.view.querySelector("#currentExercise").innerText = workout.exercises[workout.exerciseIndex].name;
-    workout.view.querySelector("#current").innerText = workout.setIndex + 1;
-    workout.view.querySelector("#exerciseIndex").innerText = workout.exerciseIndex + 1;
-    workout.view.querySelector("#totalExercises").innerText = workout.exercises.length;
-    workout.view.querySelector("#total").innerText = workout.exercises[workout.exerciseIndex].sets.length;
-    workout.view.querySelector("#repInput").value = workout.exercises[workout.exerciseIndex].sets[workout.setIndex].reps;
-    workout.view.querySelector("#measureUnitInput").value = workout.exercises[workout.exerciseIndex].sets[workout.setIndex].measureUnit;
-}
-
-const next = () => {
-    const button = workout.view.querySelector("#next");
-    let finishWorkout = false;
-
-    button.addEventListener("click", async () => {
-        if (buttonDisabled) return;
-
-        if (finishWorkout) {
-            showSummary(workout.view);
-            return;
-        }
-
-        const reps = document.querySelector("#repInput").value;
-        const measureUnit = document.querySelector("#measureUnitInput").value;
-
-        addToWorkload(reps, measureUnit);
-
-        addToSummary(
-            workout.exercises[workout.exerciseIndex].name,
-            reps, measureUnit,
-            parseInt(workout.exercises[workout.exerciseIndex].sets[workout.setIndex].breaktime
-            ));
-
-        const lastExercise = workout.exerciseIndex === workout.exercises.length - 1;
-        const lastSet = workout.setIndex === workout.exercises[workout.exerciseIndex].sets.length - 1;
-
-        if (lastExercise && lastSet) {
-            button.innerText = "Zusammenfassung anzeigen";
-            button.classList.add("summaryButton");
-            finishWorkout = true;
-            return;
-        }
-
-        workout.setIndex++;
-
-        if (workout.setIndex >= workout.exercises[workout.exerciseIndex].sets.length) {
-            workout.setIndex = 0;
-            workout.exerciseIndex++;
-        }
-
-        proceed();
-        cacheCurrentWorkoutData();
-
-        const breakTime = parseInt(workout.exercises[workout.exerciseIndex].sets[workout.setIndex].breaktime)
-        await initBreak(breakTime);
-
-    });
-}
-
-const addToWorkload = (reps, measureUnit) => {
-
-    if (!workout.workload) {
-        workout.workload = 0;
-    }
-
-    const repsNum = parseInt(reps, 10) || 0;
-    const unitNum = parseFloat(measureUnit) || 0;
-    workout.workload += repsNum * unitNum;
-};
-
-const addToSummary = (exercise, reps, measureUnit, breakTime) => {
-
-    if (!workout.summary) {
-        workout.summary = {};
-        workout.summary.log = "";
-    }
-
-    workout.summary.log += `exercise=${exercise};reps=${reps};measureUnit=${measureUnit};breaktime=${breakTime} \n`;
-}
-
-const showSummary = (view) => {
-    const summary = view.querySelector(".summary");
-
-    view.querySelector(".progress").classList.add("hide");
-    view.querySelector(".summary").classList.add("active");
-
-    const endTime = new Date().getTime();
-    workout.duration = Math.floor((endTime - workout.startTime) / 60000);
-
-    summary.querySelector("#duration").innerText = workout.duration + " Minuten";
-    summary.querySelector("#workload").innerText = workout.workload;
-
-    parseSummary();
-
-    summary.querySelector("#workout_summary").innerHTML = workout.summary.view;
-
-    const finishWorkoutButton = summary.querySelector(".finishButton");
-    finishWorkoutButton.addEventListener("click", finishWorkout)
-};
-
-const initBreak = (seconds) => {
-    return new Promise((resolve) => {
-        const button = workout.view.querySelector("#next");
-        const currentButtonHtml = button.innerHTML;
-
-        buttonDisabled = true;
-        button.classList.add("breaktime");
-        workout.view.classList.add("breaktime");
-
-        const start = Date.now();
-        const end = start + seconds * 1000;
-
-        const update = () => {
-            const now = Date.now();
-            const remaining = Math.max(0, Math.ceil((end - now) / 1000));
-
-            if (remaining <= 0) {
-                // end reached
-                button.innerHTML = currentButtonHtml;
-                button.classList.remove("breaktime");
-                buttonDisabled = false;
-                workout.view.classList.remove("breaktime");
-                resolve();
-                return;
-            }
-
-            button.innerText = "Pause: " + remaining + " Sekunden";
-            requestAnimationFrame(update); // smoother + not affected by throttling when active
-        };
-
-        update();
     });
 };
 
+const startSession = async (workoutId, workoutUpdated) => {
+    const cached = loadCachedSession(workoutId, workoutUpdated);
 
-const finishWorkout = async () => {
-    const response = await fetch("/api/workout/log", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            workout_id: workout.id,
-            duration: workout.duration,
-            workload: workout.workload,
-            summary: workout.summary.json
-        }),
-    });
-
-    if (response.ok) {
-        clearCache();
-        window.location.href = "/logs";
+    if (cached && confirm("Möchtest du das unterbrochene Workout fortsetzen?")) {
+        session = cached;
     } else {
-        console.error(`Error: ${response.status} - ${response.statusText}`);
-        alert("Fehler beim Speichern des Workouts. Bitte versuche es erneut.");
+        clearCachedSession();
+        session = await buildSession(workoutId, workoutUpdated);
+        saveSession();
+    }
+
+    document.body.classList.add("no-scroll");
+    view = document.querySelector(".workoutSessionView");
+    view.classList.add("active");
+    view.querySelector("#workoutName").textContent = session.name;
+    view.querySelector("#startTime").textContent = new Date(session.startTime).toLocaleString("de-DE");
+
+    view.querySelector("#next").addEventListener("click", onNext);
+    view.querySelector(".finishButton").addEventListener("click", submitSession);
+
+    await requestWakeLock();
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") requestWakeLock();
+    });
+
+    if (session.completed) {
+        showSummary();
+    } else {
+        renderCurrentSet();
     }
 };
 
-const parseSummary = () => {
+const buildSession = async (workoutId, workoutUpdated) => {
+    const response = await fetch(`/api/workout/${encodeURIComponent(workoutId)}`, {
+        headers: {"Accept": "application/json"},
+    });
+    if (!response.ok) {
+        throw new Error("Das Workout konnte nicht geladen werden.");
+    }
+    const {workout} = await response.json();
 
-    const array = workout.summary.log.split("\n");
-    const filtered = array.filter(line => line.trim() !== "");
+    if (!workout.exercises || workout.exercises.length === 0) {
+        throw new Error("Bitte füge dem Workout mindestens eine Übung hinzu bevor du es startest.");
+    }
+    const withoutSets = workout.exercises.find(exercise => !exercise.sets || exercise.sets.length === 0);
+    if (withoutSets) {
+        throw new Error(`Die Übung „${withoutSets.name}“ hat noch keinen Satz. Bitte füge jeder Übung mindestens einen Satz hinzu.`);
+    }
 
-    let exercises = [];
-    let jsonResponse = [];
-    let jsonIndex = 0;
+    return {
+        id: String(workout.id),
+        updatedAt: workoutUpdated || workout.updated_at,
+        name: workout.name,
+        startTime: Date.now(),
+        exerciseIndex: 0,
+        setIndex: 0,
+        workload: 0,
+        completed: false,
+        exercises: workout.exercises.map(exercise => ({
+            id: exercise.id,
+            name: exercise.name,
+            sets: exercise.sets.map(set => ({
+                plannedReps: set.repetitions,
+                plannedUnit: set.measure_unit,
+                breaktime: parseInt(set.rest_time, 10) || 0,
+                reps: null,
+                measureUnit: null,
+            })),
+        })),
+    };
+};
 
-    workout.summary.view = "";
-    workout.summary.json = {};
+// --- persistence --------------------------------------------------------
 
-    filtered.forEach((line) => {
-        const splitLine = line.split(";");
-        const exercise = splitLine[0].split("=")[1];
-        const reps = splitLine[1].split("=")[1];
-        const measureUnit = splitLine[2].split("=")[1];
-        const breaktime = splitLine[3].split("=")[1];
+const saveSession = () => {
+    try {
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({...session, savedAt: Date.now()}));
+    } catch (error) {
+        console.warn("Session could not be cached.", error);
+    }
+};
 
-        if (!exercises.includes(exercise)) {
+const clearCachedSession = () => {
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+};
 
-            if (exercises.length > 0) workout.summary.view += "</div>";
-            if (jsonResponse.length > 0) jsonIndex++;
+const loadCachedSession = (workoutId, workoutUpdated) => {
+    let cached;
+    try {
+        cached = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY));
+    } catch {
+        return null;
+    }
+    if (!cached || typeof cached !== "object") return null;
 
-            workout.summary.view += "<div>";
-            workout.summary.view += `<h5>${exercise}</h5>`;
-            exercises.push(exercise);
+    const sameWorkout = String(cached.id) === String(workoutId);
+    const fresh = Date.now() - (cached.savedAt || 0) < SESSION_MAX_AGE_MS;
+    const samePlan = !workoutUpdated || cached.updatedAt === workoutUpdated;
 
-            jsonResponse.push({
-                name: exercise,
-                sets: []
-            })
+    return sameWorkout && fresh && samePlan ? cached : null;
+};
+
+// --- progress -----------------------------------------------------------
+
+const currentExercise = () => session.exercises[session.exerciseIndex];
+const currentSet = () => currentExercise().sets[session.setIndex];
+
+const renderCurrentSet = () => {
+    const exercise = currentExercise();
+    const set = currentSet();
+
+    view.querySelector("#currentExercise").textContent = exercise.name;
+    view.querySelector("#exerciseIndex").textContent = session.exerciseIndex + 1;
+    view.querySelector("#totalExercises").textContent = session.exercises.length;
+    view.querySelector("#current").textContent = session.setIndex + 1;
+    view.querySelector("#total").textContent = exercise.sets.length;
+    view.querySelector("#repInput").value = set.reps ?? set.plannedReps;
+    view.querySelector("#measureUnitInput").value = set.measureUnit ?? set.plannedUnit;
+};
+
+const onNext = async () => {
+    if (breakRunning || session.completed) return;
+
+    const set = currentSet();
+    set.reps = view.querySelector("#repInput").value.trim();
+    set.measureUnit = view.querySelector("#measureUnitInput").value.trim();
+    session.workload += (parseInt(set.reps, 10) || 0) * (parseFloat(set.measureUnit) || 0);
+
+    const lastExercise = session.exerciseIndex === session.exercises.length - 1;
+    const lastSet = session.setIndex === currentExercise().sets.length - 1;
+
+    if (lastExercise && lastSet) {
+        session.completed = true;
+        session.endTime = Date.now();
+        saveSession();
+        showSummary();
+        return;
+    }
+
+    session.setIndex++;
+    if (session.setIndex >= currentExercise().sets.length) {
+        session.setIndex = 0;
+        session.exerciseIndex++;
+    }
+
+    saveSession();
+    renderCurrentSet();
+    await runBreak(set.breaktime);
+};
+
+const runBreak = seconds => new Promise(resolve => {
+    if (seconds <= 0) {
+        resolve();
+        return;
+    }
+
+    const button = view.querySelector("#next");
+    const originalHtml = button.innerHTML;
+    const end = Date.now() + seconds * 1000;
+
+    breakRunning = true;
+    button.classList.add("breaktime");
+    view.classList.add("breaktime");
+
+    const finish = () => {
+        clearInterval(timer);
+        button.innerHTML = originalHtml;
+        button.classList.remove("breaktime");
+        view.classList.remove("breaktime");
+        breakRunning = false;
+        navigator.vibrate?.([300, 150, 300]);
+        resolve();
+    };
+
+    const tick = () => {
+        const remaining = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+        if (remaining <= 0) {
+            finish();
+            return;
+        }
+        button.textContent = `Pause: ${remaining} Sekunden`;
+    };
+
+    // setInterval + wall clock keeps counting correctly after the screen was off.
+    const timer = setInterval(tick, 250);
+    tick();
+});
+
+// --- summary ------------------------------------------------------------
+
+const performedExercises = () => session.exercises.map(exercise => ({
+    name: exercise.name,
+    sets: exercise.sets
+        .filter(set => set.reps !== null)
+        .map(set => ({
+            reps: set.reps,
+            measureUnit: set.measureUnit,
+            breaktime: String(set.breaktime),
+        })),
+}));
+
+const showSummary = () => {
+    const summary = view.querySelector(".summary");
+    view.querySelector(".progress").classList.add("hide");
+    summary.classList.add("active");
+
+    session.duration = Math.round(((session.endTime || Date.now()) - session.startTime) / 60000);
+
+    summary.querySelector("#duration").textContent = `${session.duration} Minuten`;
+    summary.querySelector("#workload").textContent = formatNumber(session.workload);
+
+    const container = summary.querySelector("#workout_summary");
+    container.replaceChildren();
+
+    performedExercises().forEach(exercise => {
+        const block = document.createElement("div");
+        const heading = document.createElement("h5");
+        heading.textContent = exercise.name;
+        block.append(heading);
+
+        exercise.sets.forEach(set => {
+            const row = document.createElement("div");
+            row.append(
+                summaryLine("Wiederholungen: ", set.reps),
+                summaryLine("Einheit: ", set.measureUnit),
+                summaryLine("Pause: ", set.breaktime),
+            );
+            block.append(row);
+        });
+        container.append(block);
+    });
+};
+
+const summaryLine = (label, value) => {
+    const p = document.createElement("p");
+    const b = document.createElement("b");
+    b.textContent = label;
+    p.append(b, document.createTextNode(value ?? ""));
+    return p;
+};
+
+const formatNumber = value => Number.isInteger(value) ? String(value) : value.toFixed(2).replace(".", ",");
+
+const submitSession = async () => {
+    const button = view.querySelector(".finishButton");
+    button.style.pointerEvents = "none";
+
+    try {
+        const response = await fetch("/api/workout/log", {
+            method: "POST",
+            headers: {"Content-Type": "application/json", "Accept": "application/json"},
+            body: JSON.stringify({
+                workout_id: Number(session.id),
+                duration: session.duration,
+                workload: session.workload,
+                summary: {exercises: performedExercises()},
+            }),
+        });
+
+        if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.message || `${response.status} ${response.statusText}`);
         }
 
-        jsonResponse[jsonIndex].sets.push(
-            {
-                reps,
-                measureUnit,
-                breaktime
-            }
-        );
-
-        workout.summary.view += "<div>"
-        workout.summary.view += `<p><b>Wiederholungen: </b>${reps}</p>`;
-        workout.summary.view += `<p><b>Einheit: </b>${measureUnit}</p>`;
-        workout.summary.view += `<p><b>Pause: </b>${breaktime}</p>`;
-        workout.summary.view += "</div>"
-    })
-
-    if (exercises.length > 0) workout.summary.view += "</div>";
-    workout.summary.json = JSON.stringify({exercises: jsonResponse});
-}
-
-const initAccordion = () => {
-    const accordions = document.querySelectorAll(".trigger-accordion");
-    accordions.forEach(accordion => {
-        const trigger = accordion.querySelector(".trigger");
-        const container = accordion.querySelector(".trigger-container");
-
-        trigger.addEventListener("click", () => {
-            if (container.classList.contains("active")) {
-                container.classList.remove("active");
-                accordion.classList.remove("active");
-                return;
-            }
-
-            container.classList.add("active");
-            accordion.classList.add("active");
-        })
-    });
-}
+        clearCachedSession();
+        window.location.href = "/logs";
+    } catch (error) {
+        console.error(error);
+        alert("Fehler beim Speichern des Workouts. Bitte versuche es erneut.\n" + (error.message || ""));
+    } finally {
+        button.style.pointerEvents = "";
+    }
+};

@@ -1,8 +1,8 @@
 <div class="workoutSessionView">
     <div class="wrapper">
         <div class="close-workout absolute right-20 top-20">
-            <a href="/workout?workout_id=<?= $params['workout']['id'] ?>">
-                <img src="/img/close.svg">
+            <a href="/workout?workout_id=<?= e($workout['id']) ?>">
+                <img src="/img/close.svg" alt="Workout schließen">
             </a>
         </div>
         <div class="flex column gap-20" id="metaData">
@@ -12,27 +12,26 @@
         <div class="progress flex column gap-20 mt-20">
             <h3 class="m-0">
                 <span id="currentExercise"></span>
-                <span class="font-weight-300 font-size-16 relative bottom-3">(<span id="exerciseIndex"></span>/<span
-                            id="totalExercises"></span>)</span>
+                <span class="font-weight-300 font-size-16 relative bottom-3">(<span id="exerciseIndex"></span>/<span id="totalExercises"></span>)</span>
             </h3>
             <div class="currentSet flex column gap-20">
                 <h3 class="m-0">
                     <span>Satz</span>
-                    <span class="font-weight-300 font-size-16 relative bottom-3">(<span id="current"></span>/<span
-                                id="total"></span>)</span>
+                    <span class="font-weight-300 font-size-16 relative bottom-3">(<span id="current"></span>/<span id="total"></span>)</span>
                 </h3>
                 <div class="meta flex column gap-20">
-                    <label class="flex gap-5 column" for="repInput"><span
-                                class="font-size-20 font-weight-400">Wiederholungen</span><input
-                                class="font-size-18 font-weight-300" name="reps"
-                                id="repInput"
-                                type="text"/></label>
-                    <label class="flex gap-5 column font-weight-400" for="measureUnitInput">Einheit<input
-                                class="font-weight-300 font-size-18" name="measureUnit" id="measureUnitInput" type="text"/></label>
+                    <label class="flex gap-5 column" for="repInput">
+                        <span class="font-size-20 font-weight-400">Wiederholungen</span>
+                        <input class="font-size-18 font-weight-300" name="reps" id="repInput" type="number" inputmode="numeric" min="0"/>
+                    </label>
+                    <label class="flex gap-5 column font-weight-400" for="measureUnitInput">
+                        Einheit
+                        <input class="font-weight-300 font-size-18" name="measureUnit" id="measureUnitInput" type="text"/>
+                    </label>
                 </div>
             </div>
             <div class="button mt-20" id="next">
-                <img class="nextButton" alt="next" src="/img/back.svg" />
+                <img class="nextButton" alt="weiter" src="/img/back.svg"/>
             </div>
         </div>
         <div class="summary flex column gap-20 mt-20">

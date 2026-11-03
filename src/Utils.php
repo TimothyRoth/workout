@@ -6,53 +6,33 @@ use JetBrains\PhpStorm\NoReturn;
 
 class Utils
 {
-
     public function renderView(string $view, array $params = []): void
     {
-        include_once __DIR__ . "/view/parts/header.php";
-        include_once __DIR__ . '/view/' . $view . '.php';
-        include_once __DIR__ . "/view/parts/footer.php";
+        header('Content-Type: text/html; charset=utf-8');
+        include __DIR__ . '/view/parts/header.php';
+        include __DIR__ . '/view/' . $view . '.php';
+        include __DIR__ . '/view/parts/footer.php';
     }
 
     #[NoReturn]
-    public function render404(): void
+    public function json(array $payload, int $status = 200): void
     {
-        header($_SERVER["SERVER_PROTOCOL"] . ' 404 Not Found');
-        echo "404 Not Found";
+        http_response_code($status);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
         exit;
     }
 
     #[NoReturn]
-    public function render400(): void
+    public function redirect(string $url, array $params = [], string $anchor = ''): void
     {
-        header($_SERVER["SERVER_PROTOCOL"] . ' 400 Bad Request');
-        echo "400 Bad Request";
-        exit;
-    }
-
-
-    #[NoReturn]
-    public function redirect(string $url, $params = [], string $anchor = ""): void
-    {
-        if(!empty ($params)) {
+        if ($params !== []) {
             $url .= '?' . http_build_query($params);
         }
-
-        if(!empty($anchor)) {
-            $url .= "#{$anchor}";
+        if ($anchor !== '') {
+            $url .= '#' . rawurlencode($anchor);
         }
-
-        header("Location: $url");
+        header('Location: ' . $url, true, 303);
         exit;
-    }
-
-    public function getHttpQueryParam(string $key): ?string
-    {
-        return ($_POST[$key] ?? $_GET[$key] ?? null);
-    }
-
-    public function nullChecker(array $checks): bool
-    {
-        return !in_array(null, $checks, true);
     }
 }
