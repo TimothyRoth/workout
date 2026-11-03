@@ -1,56 +1,48 @@
-<div class="edit-container" id="edit-sets-<?= e($exercise['id']) ?>">
-    <div class="wrapper">
-        <div class="close">
-            <img class="icon edit-icon" src="/img/close.svg" alt="schließen"/>
-        </div>
-        <h3>Satz hinzufügen</h3>
-        <form class="addSet" method="POST" action="/addSet">
-            <input type="hidden" name="exercise_id" value="<?= e($exercise['id']) ?>">
-            <div class="flex column gap-20">
-                <label class="flex column gap-10">
-                    Satzanzahl
-                    <input type="number" name="amount" min="1" max="10" value="3" inputmode="numeric" required/>
-                </label>
-                <label class="flex column gap-10">
-                    Wiederholungen
-                    <input type="number" name="repetitions" min="0" max="10000" inputmode="numeric" required/>
-                </label>
-                <label class="flex column gap-10">
-                    Einheit
-                    <input type="text" name="measure_unit" maxlength="30" required/>
-                </label>
-                <label class="flex column gap-10">
-                    Pausenzeit (s)
-                    <input type="number" name="rest_time" min="0" max="3600" inputmode="numeric" required/>
-                </label>
-                <div class="flex justify-center">
-                    <input class="addButton" type="image" alt="hinzufügen" src="/img/add.svg">
-                </div>
-            </div>
-        </form>
+<dialog class="sheet" id="add-sets-<?= e($exercise['id']) ?>">
+    <div class="sheet-header">
+        <h2>Sätze hinzufügen</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Schließen"><?= icon('close') ?></button>
     </div>
-</div>
+    <form class="sheet-body" method="POST" action="/addSet">
+        <input type="hidden" name="exercise_id" value="<?= e($exercise['id']) ?>">
+        <div class="grid-2">
+            <label class="field">
+                <span>Anzahl Sätze</span>
+                <input class="input" type="number" name="amount" min="1" max="10" value="3" inputmode="numeric" required>
+            </label>
+            <label class="field">
+                <span>Wiederholungen</span>
+                <input class="input" type="number" name="repetitions" min="0" max="10000" inputmode="numeric" required>
+            </label>
+            <label class="field">
+                <span>Einheit (z. B. 80 kg)</span>
+                <input class="input" type="text" name="measure_unit" maxlength="30" required>
+            </label>
+            <label class="field">
+                <span>Pause (s)</span>
+                <input class="input" type="number" name="rest_time" min="0" max="3600" inputmode="numeric" value="90" required>
+            </label>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit"><?= icon('plus', 'icon-sm') ?> Hinzufügen</button>
+    </form>
+    <div class="sheet-footer"></div>
+</dialog>
 
-<div class="edit-container" id="edit-exercise-<?= e($exercise['id']) ?>">
-    <div class="wrapper">
-        <div class="close">
-            <img class="icon edit-icon" src="/img/close.svg" alt="schließen"/>
-        </div>
-        <div class="inner flex column gap-20">
-            <div class="flex align-center">
-                <form class="flex align-center" method="POST" action="/deleteExercise">
-                    <input type="hidden" name="exercise_id" value="<?= e($exercise['id']) ?>">
-                    <input class="deleteButton w-15 h-15 relative bottom-3" type="image" alt="löschen" src="/img/close.svg">
-                </form>
-                <h3 class="m-0">Übung bearbeiten</h3>
-            </div>
-            <form class="flex gap-20 align-center" method="POST" action="/editExercise">
-                <input type="hidden" name="exercise_id" value="<?= e($exercise['id']) ?>">
-                <label>
-                    <input class="no-border no-padding no-radius" type="text" name="exercise_name" value="<?= e($exercise['name']) ?>" maxlength="100" required>
-                </label>
-                <input class="saveButton w-20 h-20" type="image" alt="speichern" src="/img/save.svg">
-            </form>
-        </div>
+<dialog class="sheet" id="edit-exercise-<?= e($exercise['id']) ?>">
+    <div class="sheet-header">
+        <h2>Übung bearbeiten</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Schließen"><?= icon('close') ?></button>
     </div>
-</div>
+    <form class="sheet-body" method="POST" action="/editExercise">
+        <input type="hidden" name="exercise_id" value="<?= e($exercise['id']) ?>">
+        <label class="field">
+            <span>Name</span>
+            <input class="input" type="text" name="exercise_name" value="<?= e($exercise['name']) ?>" maxlength="100" autocomplete="off" required>
+        </label>
+        <button class="btn btn-primary btn-block" type="submit">Speichern</button>
+    </form>
+    <form class="sheet-footer" method="POST" action="/deleteExercise" data-confirm="Übung „<?= e($exercise['name']) ?>“ mit allen Sätzen löschen?">
+        <input type="hidden" name="exercise_id" value="<?= e($exercise['id']) ?>">
+        <button class="btn btn-danger btn-block" type="submit"><?= icon('trash', 'icon-sm') ?> Übung löschen</button>
+    </form>
+</dialog>

@@ -1,9 +1,0 @@
-.entries {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-
-    .logEntry {
-        border-top: 1px solid var(--color-bg);
-    }
-}

@@ -1,27 +1,32 @@
 <?php $workout = $params['workout']; ?>
-<div class="wrapper">
-    <div class="singleWorkoutView">
-        <div class="flex gap-10 align-center">
-            <a class="backButton" href="/"><img class="icon back-icon" src="/img/back.svg" alt="zurück"/></a>
-            <h3 class="workoutTitle"><?= e($workout['name']) ?></h3>
-            <div class="startWorkout ml-auto" data-workout-id="<?= e($workout['id']) ?>" data-workout-updated="<?= e($workout['updated_at']) ?>">
-                <img src="/img/start.svg" alt="Workout starten" class="icon start-icon"/>
-            </div>
+<header class="topbar">
+    <a class="icon-btn" href="/" aria-label="Zurück"><?= icon('back') ?></a>
+    <h1><?= e($workout['name']) ?></h1>
+    <button class="icon-btn" type="button" data-dialog="edit-workout-<?= e($workout['id']) ?>" aria-label="Workout bearbeiten"><?= icon('edit') ?></button>
+</header>
+<?php include __DIR__ . '/parts/workout/editWorkoutContainer.php'; ?>
+
+<div class="stack-lg">
+    <button class="btn btn-primary btn-block btn-lg" type="button" id="start-workout"
+            data-workout-id="<?= e($workout['id']) ?>" data-workout-updated="<?= e($workout['updated_at']) ?>">
+        <?= icon('play') ?> Workout starten
+    </button>
+
+    <form class="card inline-form" method="POST" action="/addExercise">
+        <input type="hidden" name="workout_id" value="<?= e($workout['id']) ?>">
+        <input class="input" name="exercise_name" type="text" placeholder="Neue Übung" maxlength="100" autocomplete="off" required>
+        <button class="icon-btn icon-btn-accent" type="submit" aria-label="Übung hinzufügen"><?= icon('plus') ?></button>
+    </form>
+
+    <?php if (count($workout['exercises']) === 0) { ?>
+        <p class="empty">Noch keine Übungen. Füge oben die erste hinzu.</p>
+    <?php } else { ?>
+        <div class="stack">
+            <?php foreach ($workout['exercises'] as $exercise) {
+                include __DIR__ . '/parts/exercise/exercise.php';
+            } ?>
         </div>
-        <form class="addExercise" method="POST" action="/addExercise">
-            <label>
-                <input type="hidden" name="workout_id" value="<?= e($workout['id']) ?>">
-                <input class="no-border no-padding no-radius" name="exercise_name" placeholder="Neue Übung" type="text" maxlength="100" required>
-            </label>
-        </form>
-        <?php if (count($workout['exercises']) > 0) { ?>
-            <div class="exercises flex column gap-20">
-                <?php foreach ($workout['exercises'] as $exercise) {
-                    include __DIR__ . "/parts/exercise/exercise.php";
-                } ?>
-            </div>
-        <?php } ?>
-    </div>
+    <?php } ?>
 </div>
 
-<?php include __DIR__ . "/parts/workout/workoutSessionMold.php" ?>
+<?php include __DIR__ . '/parts/workout/workoutSessionMold.php'; ?>

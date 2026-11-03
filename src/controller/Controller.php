@@ -47,16 +47,16 @@ class Controller
     private function mapPages(): void
     {
         $this->router->map('GET', '/', function () {
-            $this->utils->renderView('frontpage', ['workouts' => Database::getWorkouts()]);
+            $this->utils->renderView('frontpage', ['title' => 'Workouts', 'workouts' => Database::getWorkouts()]);
         });
 
         $this->router->map('GET', '/logs', function () {
-            $this->utils->renderView('log', ['logs' => Database::getLogs()]);
+            $this->utils->renderView('log', ['title' => 'Logs', 'logs' => Database::getLogs()]);
         });
 
         $this->router->map('GET', '/workout', function () {
             $workout = $this->requireWorkout($this->request->int('workout_id'));
-            $this->utils->renderView('workout', ['workout' => $workout]);
+            $this->utils->renderView('workout', ['title' => $workout['name'], 'workout' => $workout]);
         });
     }
 

@@ -1,22 +1,22 @@
-<table>
+<table class="sets">
     <thead>
     <tr>
-        <th>Wh</th>
-        <th>Eh</th>
-        <th>P(s)</th>
-        <th></th>
+        <th class="num">#</th>
+        <th>Wdh.</th>
+        <th>Einheit</th>
+        <th>Pause</th>
+        <th class="actions"></th>
     </tr>
     </thead>
     <tbody>
-    <?php foreach ($exercise['sets'] as $set) { ?>
+    <?php foreach ($exercise['sets'] as $i => $set) { ?>
         <tr data-set-id="<?= e($set['id']) ?>">
+            <td class="num"><?= $i + 1 ?></td>
             <td><?= e($set['repetitions']) ?></td>
-            <td><?= e($set['measure_unit']) ?></td>
-            <td><?= e($set['rest_time']) ?></td>
-            <td>
-                <div class="editButton" data-target="edit-set-<?= e($set['id']) ?>">
-                    <img class="icon edit-icon" src="/img/edit.svg" alt="bearbeiten"/>
-                </div>
+            <td class="unit"><?= e($set['measure_unit']) ?></td>
+            <td><?= e($set['rest_time']) ?> s</td>
+            <td class="actions">
+                <button class="icon-btn" type="button" data-dialog="edit-set-<?= e($set['id']) ?>" aria-label="Satz <?= $i + 1 ?> bearbeiten"><?= icon('edit', 'icon-sm') ?></button>
             </td>
         </tr>
     <?php } ?>

@@ -40,7 +40,7 @@ class Application
             return;
         }
 
-        (new Utils())->renderView('error', ['status' => $status, 'message' => $message]);
+        (new Utils())->renderView('error', ['title' => 'Fehler ' . $status, 'status' => $status, 'message' => $message]);
     }
 
     private static function wantsJson(): bool

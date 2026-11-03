@@ -6,9 +6,13 @@ use JetBrains\PhpStorm\NoReturn;
 
 class Utils
 {
+    /**
+     * Render a view inside the shared layout. $params['title'] becomes the page title.
+     */
     public function renderView(string $view, array $params = []): void
     {
         header('Content-Type: text/html; charset=utf-8');
+        $title = (string)($params['title'] ?? '');
         include __DIR__ . '/view/parts/header.php';
         include __DIR__ . '/view/' . $view . '.php';
         include __DIR__ . '/view/parts/footer.php';

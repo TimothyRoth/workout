@@ -17,6 +17,55 @@ function asset(string $path): string
 }
 
 /**
+ * JSON import map that maps every module in public/js to its versioned URL,
+ * so "import ... from 'app/session'" is cache-busted like the entry script.
+ */
+function import_map(): string
+{
+    $imports = [];
+    foreach (glob(__DIR__ . '/../public/js/*.js') ?: [] as $file) {
+        $name = basename($file, '.js');
+        $imports['app/' . $name] = '/js/' . $name . '.js?v=' . VERSION;
+    }
+    return json_encode(['imports' => $imports], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_THROW_ON_ERROR);
+}
+
+/**
+ * Inline SVG icon (24px grid, stroked with currentColor).
+ */
+function icon(string $name, string $class = ''): string
+{
+    static $paths = [
+        'back'    => '<path d="M15 18l-6-6 6-6"/>',
+        'chevron' => '<path d="M9 18l6-6-6-6"/>',
+        'plus'    => '<path d="M12 5v14M5 12h14"/>',
+        'close'   => '<path d="M6 6l12 12M6 18L18 6"/>',
+        'edit'    => '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+        'play'    => '<path d="M7 4v16l13-8z" fill="currentColor" stroke="none"/>',
+        'check'   => '<path d="M20 6 9 17l-5-5"/>',
+        'trash'   => '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/>',
+        'history' => '<path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/>',
+        'timer'   => '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/>',
+    ];
+
+    $classes = trim('icon ' . $class);
+    return sprintf(
+        '<svg class="%s" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">%s</svg>',
+        e($classes),
+        $paths[$name] ?? ''
+    );
+}
+
+/**
+ * Format a number the German way, dropping trailing zeros ("640,5", "12").
+ */
+function format_number(float|int|string|null $value, int $decimals = 2): string
+{
+    $formatted = number_format((float)$value, $decimals, ',', '.');
+    return str_contains($formatted, ',') ? rtrim(rtrim($formatted, '0'), ',') : $formatted;
+}
+
+/**
  * Format a UTC "Y-m-d H:i:s" timestamp (as SQLite stores it) in local time.
  */
 function local_datetime(?string $utc, string $format = 'd.m.Y H:i'): string

@@ -23,6 +23,17 @@ php tests/smoke.php path/to/copy.db       # against a COPY of real data (it is m
 The smoke test boots the built-in server on a random port and checks routing,
 validation, origin checks, escaping, cascade deletes, the JSON API and the log page.
 
+## Front end
+
+No build step. `public/css/app.css` is the whole design system (tokens on `:root`,
+components below). JavaScript lives in ES modules under `public/js/`; `app.js` is the
+entry and the other modules are imported through an import map in the layout
+(`import ... from "app/session"`), which is what keeps them cache-busted. Inline SVG
+icons come from the `icon()` helper in `src/helpers.php`. Edit forms are native
+`<dialog>` bottom sheets opened with `data-dialog="<id>"`; delete forms ask with
+`data-confirm="..."`. `public/manifest.webmanifest` makes the app installable; the PNG
+icons were generated from `public/img/icon.svg`.
+
 ## Deploy
 
 Production is a plain `git pull` on the server. Static assets are cache-busted with

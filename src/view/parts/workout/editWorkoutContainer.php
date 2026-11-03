@@ -1,21 +1,18 @@
-<div class="edit-container" id="edit-workout-<?= e($workout['id']) ?>">
-    <div class="wrapper">
-        <div class="close"><img class="icon edit-icon" src="/img/close.svg" alt="schließen"/></div>
-        <div class="inner flex gap-20 column">
-            <div class="flex align-center">
-                <form class="flex" method="POST" action="/deleteWorkout">
-                    <input type="hidden" name="workout_id" value="<?= e($workout['id']) ?>">
-                    <input class="deleteButton w-15 h-15 relative bottom-3" type="image" alt="löschen" src="/img/close.svg">
-                </form>
-                <h3>Workout bearbeiten</h3>
-            </div>
-            <form class="flex gap-20 align-center" method="POST" action="/editWorkout">
-                <input type="hidden" name="workout_id" value="<?= e($workout['id']) ?>">
-                <label>
-                    <input class="no-border no-padding no-radius" type="text" name="workout_name" placeholder="Name" value="<?= e($workout['name']) ?>" maxlength="100" required>
-                </label>
-                <input class="saveButton w-20 h-20" type="image" alt="speichern" src="/img/save.svg">
-            </form>
-        </div>
+<dialog class="sheet" id="edit-workout-<?= e($workout['id']) ?>">
+    <div class="sheet-header">
+        <h2>Workout bearbeiten</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Schließen"><?= icon('close') ?></button>
     </div>
-</div>
+    <form class="sheet-body" method="POST" action="/editWorkout">
+        <input type="hidden" name="workout_id" value="<?= e($workout['id']) ?>">
+        <label class="field">
+            <span>Name</span>
+            <input class="input" type="text" name="workout_name" value="<?= e($workout['name']) ?>" maxlength="100" autocomplete="off" required>
+        </label>
+        <button class="btn btn-primary btn-block" type="submit">Speichern</button>
+    </form>
+    <form class="sheet-footer" method="POST" action="/deleteWorkout" data-confirm="Workout „<?= e($workout['name']) ?>“ mit allen Übungen löschen? Das kann nicht rückgängig gemacht werden.">
+        <input type="hidden" name="workout_id" value="<?= e($workout['id']) ?>">
+        <button class="btn btn-danger btn-block" type="submit"><?= icon('trash', 'icon-sm') ?> Workout löschen</button>
+    </form>
+</dialog>

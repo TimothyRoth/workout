@@ -1,25 +1,21 @@
-<div class="exercise" id="exercise-<?= e($exercise['id']) ?>" data-exercise-id="<?= e($exercise['id']) ?>">
-    <div class="top">
-        <h3 class="exerciseName"><?= e($exercise['name']) ?></h3>
-        <div class="editButton" data-target="edit-exercise-<?= e($exercise['id']) ?>">
-            <img class="icon edit-icon" src="/img/edit.svg" alt="bearbeiten"/>
-        </div>
-    </div>
-    <div class="sets">
-        <?php
-        if (!empty($exercise['sets'])) {
-            include __DIR__ . "/../set/set.php";
-        }
+<article class="card exercise" id="exercise-<?= e($exercise['id']) ?>" data-exercise-id="<?= e($exercise['id']) ?>">
+    <header class="card-header">
+        <h2><?= e($exercise['name']) ?></h2>
+        <button class="icon-btn" type="button" data-dialog="edit-exercise-<?= e($exercise['id']) ?>" aria-label="Übung bearbeiten"><?= icon('edit') ?></button>
+    </header>
 
-        foreach ($exercise['sets'] as $set) {
-            include __DIR__ . "/../set/setEditContainer.php";
-        }
-        ?>
+    <?php if (empty($exercise['sets'])) { ?>
+        <p class="hint">Noch keine Sätze.</p>
+    <?php } else {
+        include __DIR__ . '/../set/set.php';
+    } ?>
 
-        <div class="editButton addButton flex justify-center mt-20" data-target="edit-sets-<?= e($exercise['id']) ?>">
-            <img src="/img/add.svg" alt="Satz hinzufügen"/>
-        </div>
+    <button class="btn btn-ghost btn-block" type="button" data-dialog="add-sets-<?= e($exercise['id']) ?>"><?= icon('plus', 'icon-sm') ?> Sätze hinzufügen</button>
 
-        <?php include __DIR__ . "/exerciseEditContainer.php"; ?>
-    </div>
-</div>
+    <?php
+    foreach ($exercise['sets'] as $set) {
+        include __DIR__ . '/../set/setEditContainer.php';
+    }
+    include __DIR__ . '/exerciseEditContainer.php';
+    ?>
+</article>

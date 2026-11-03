@@ -2,13 +2,22 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#0f172a">
-    <title>Workout</title>
-    <?php foreach (['lib', 'main', 'workout', 'editContainer', 'exercise', 'button', 'workoutSession', 'logs', 'accordion'] as $css) { ?>
-    <link rel="stylesheet" href="<?= asset("/css/{$css}.css") ?>"/>
-    <?php } ?>
-    <script src="<?= asset('/js/workout.js') ?>" defer></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0b1120">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Workout">
+    <title><?= e($title !== '' ? $title . ' · Workout' : 'Workout') ?></title>
+    <link rel="manifest" href="<?= asset('/manifest.webmanifest') ?>">
+    <link rel="icon" href="<?= asset('/img/icon.svg') ?>" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="<?= asset('/img/icon-180.png') ?>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="<?= asset('/css/app.css') ?>">
+    <script type="importmap"><?= import_map() ?></script>
+    <script type="module" src="<?= asset('/js/app.js') ?>"></script>
 </head>
 <body>
-<main class="pb-20">
+<main class="app">

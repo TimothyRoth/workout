@@ -97,8 +97,12 @@ echo "Smoke test against $base\n";
 // --- pages render --------------------------------------------------------
 $r = request('GET', '/');
 check('frontpage 200', $r['status'] === 200, "got {$r['status']}");
-check('assets are versioned', preg_match('/workout\.js\?v=[0-9a-z]+/', $r['body']) === 1);
-check('every css file is versioned', substr_count($r['body'], '.css?v=') === 9, substr_count($r['body'], '.css?v=') . ' versioned css links');
+check('entry module is versioned', preg_match('/\/js\/app\.js\?v=[0-9a-z]+/', $r['body']) === 1);
+check('stylesheet is versioned', preg_match('/\/css\/app\.css\?v=[0-9a-z]+/', $r['body']) === 1);
+check('manifest is linked', str_contains($r['body'], 'rel="manifest"'));
+$jsModules = array_map(fn($f) => basename($f, '.js'), glob($root . '/public/js/*.js') ?: []);
+$importMap = preg_match('/<script type="importmap">(.*?)<\/script>/s', $r['body'], $m) ? json_decode($m[1], true) : null;
+check('import map versions every js module', is_array($importMap) && count(array_filter($jsModules, fn($name) => preg_match('/\?v=[0-9a-z]+$/', $importMap['imports']["app/$name"] ?? '') === 1)) === count($jsModules), json_encode($importMap));
 
 $r = request('GET', '/logs');
 check('logs page 200', $r['status'] === 200, "got {$r['status']}");
@@ -197,7 +201,7 @@ check('sets cascade-deleted', (int)db()->query("SELECT COUNT(*) FROM sets WHERE 
 check('logs survive workout deletion', (int)db()->query("SELECT COUNT(*) FROM workoutLog WHERE workout_id=$workoutId")->fetchColumn() === 3);
 
 $r = request('GET', '/logs');
-check('logs of deleted workout still listed', $r['status'] === 200 && str_contains($r['body'], '(gelöscht)'));
+check('logs of deleted workout still listed', $r['status'] === 200 && str_contains($r['body'], '>gelöscht<'));
 
 // --- schema state ----------------------------------------------------------
 check('schema version set', (int)db()->query('PRAGMA user_version')->fetchColumn() === 1);
