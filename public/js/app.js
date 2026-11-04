@@ -9,11 +9,13 @@ import {initSession} from "app/session";
 import {initUnitSelects, initPasswordToggles} from "app/forms";
 import {initSteppers} from "app/stepper";
 import {initPwa} from "app/pwa";
+import {initExercises} from "app/exercises";
 
 initDialogs();
 initConfirmations();
 initUnitSelects();
 initPasswordToggles();
 initSteppers();
+initExercises();
 initSession();
 initPwa();

@@ -1,4 +1,4 @@
-<table class="sets">
+<table class="sets" data-sortable="sets" data-parent-id="<?= e($exercise['id']) ?>">
     <thead>
     <tr>
         <th class="num">#</th>
@@ -10,8 +10,8 @@
     </thead>
     <tbody>
     <?php foreach ($exercise['sets'] as $i => $set) { ?>
-        <tr data-set-id="<?= e($set['id']) ?>">
-            <td class="num"><?= $i + 1 ?></td>
+        <tr data-set-id="<?= e($set['id']) ?>" data-sortable-item>
+            <td class="num drag-handle" data-drag-handle aria-label="Satz <?= $i + 1 ?> verschieben"><?= icon('grip', 'icon-sm') ?><span><?= $i + 1 ?></span></td>
             <td><?= e($set['repetitions']) ?></td>
             <td class="unit"><?= e(set_label($set)) ?></td>
             <td><?= e($set['rest_time']) ?> s</td>

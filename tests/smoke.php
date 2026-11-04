@@ -273,6 +273,7 @@ check('delete set', $r['status'] === 303 && (int)db()->query("SELECT COUNT(*) FR
 $r = request('GET', "/workout?workout_id=$workoutId");
 check('workout page 200', $r['status'] === 200);
 check('workout page has stable exercise anchor', str_contains($r['body'], "id=\"exercise-$exerciseId\""));
+check('exercise row summarises its sets', str_contains($r['body'], '2 × 8 · 80 kg · 120 s'), substr((string)strstr($r['body'], 'exercise-sets-summary'), 0, 120));
 check('workout page escapes names', str_contains($r['body'], 'Smoke &lt;b&gt;Test&lt;/b&gt;'));
 check('workout page shows set labels', str_contains($r['body'], '>80 kg<'));
 check('workout page has unit selects', substr_count($r['body'], 'data-unit-select') >= 3);

@@ -119,7 +119,11 @@ class Controller
 
         $this->router->map('GET', '/workout', function () {
             $workout = $this->requireWorkout($this->request->int('workout_id'));
-            $this->utils->renderView('workout', ['title' => $workout['name'], 'workout' => $workout]);
+            $this->utils->renderView('workout', [
+                'title' => $workout['name'],
+                'workout' => $workout,
+                'exercisesOpen' => count($workout['exercises']) <= 2, // short workouts start expanded
+            ]);
         });
 
         // The service worker is rendered by PHP so its cache name carries the deployed

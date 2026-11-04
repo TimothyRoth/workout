@@ -60,6 +60,7 @@ function icon(string $name, string $class = ''): string
         'eye-off' => '<path d="M3 3l18 18"/><path d="M10.6 10.6a3 3 0 0 0 4.2 4.2"/><path d="M9.9 5.2A10.7 10.7 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17.4 17.4 0 0 0 2 12s3.5 7 10 7a10 10 0 0 0 4.4-1"/>',
         'logout'  => '<path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M13 4h6a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-6"/>',
         'alert'   => '<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>',
+        'grip'    => '<circle cx="9" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="18" r="1.2" fill="currentColor" stroke="none"/>',
         'offline' => '<path d="M2 2l20 20"/><path d="M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 5.2-2.8M12 20h.01"/><path d="M16.7 11.5A10 10 0 0 1 19 13M1.4 8.6A16 16 0 0 1 8 5M22.6 8.6a16 16 0 0 0-8-4.3"/>',
     ];
 
@@ -136,6 +137,40 @@ function set_label(array $set): string
 {
     $unit = \App\Unit::tryFrom((string)($set['unit'] ?? '')) ?? \App\Unit::Kg;
     return $unit->format($set['load'] ?? null);
+}
+
+/**
+ * One line for a collapsed exercise: "3 × 8 · 80 kg · 90 s", with ranges
+ * ("3 × 8–12 · 60–80 kg") when the sets differ and "gemischt" when the units do.
+ */
+function exercise_summary(array $sets): string
+{
+    $count = count($sets);
+    if ($count === 0) {
+        return 'Noch keine Sätze';
+    }
+
+    $range = function (array $values, string $suffix = ''): string {
+        $min = min($values);
+        $max = max($values);
+        $text = $min === $max ? format_number($min) : format_number($min) . '–' . format_number($max);
+        return $text . $suffix;
+    };
+
+    $units = array_unique(array_map(fn($set) => (string)($set['unit'] ?? ''), $sets));
+    if (count($units) === 1) {
+        $unit = \App\Unit::tryFrom($units[0]) ?? \App\Unit::Kg;
+        $loads = array_map(fn($set) => (float)($set['load'] ?? 0), $sets);
+        $load = !$unit->needsLoad() ? $unit->short(null)
+            : (min($loads) === max($loads) ? $unit->format(min($loads)) : format_number(min($loads)) . '–' . $unit->format(max($loads)));
+    } else {
+        $load = 'gemischt';
+    }
+
+    $reps = $range(array_map(fn($set) => (int)$set['repetitions'], $sets));
+    $rest = $range(array_map(fn($set) => (int)$set['rest_time'], $sets), ' s');
+
+    return "$count × $reps · $load · $rest";
 }
 
 /**
