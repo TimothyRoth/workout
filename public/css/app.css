@@ -683,6 +683,26 @@ select.input {
     -webkit-user-select: none;
 }
 
+.is-dragging {
+    position: relative;
+    z-index: 20;
+    box-shadow: var(--shadow);
+    transition: none;
+}
+
+details.is-dragging {
+    background: var(--surface-2);
+}
+
+tr.is-dragging > td {
+    background: var(--surface-2);
+}
+
+.is-dragging .drag-handle {
+    color: var(--accent);
+    cursor: grabbing;
+}
+
 .sets td.drag-handle {
     display: table-cell;
     width: 52px;

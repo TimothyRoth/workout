@@ -10,6 +10,7 @@ import {initUnitSelects, initPasswordToggles} from "app/forms";
 import {initSteppers} from "app/stepper";
 import {initPwa} from "app/pwa";
 import {initExercises} from "app/exercises";
+import {initReorder} from "app/reorder";
 
 initDialogs();
 initConfirmations();
@@ -17,5 +18,6 @@ initUnitSelects();
 initPasswordToggles();
 initSteppers();
 initExercises();
+initReorder();
 initSession();
 initPwa();

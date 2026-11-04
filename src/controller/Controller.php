@@ -276,6 +276,30 @@ class Controller
 
     private function mapApi(): void
     {
+        // Drag-and-drop order from js/reorder.js: {"type": "exercises"|"sets", "parent_id": n, "ids": [...]}
+        $this->router->map('POST', '/api/reorder', function () {
+            $type = $this->request->string('type', 20);
+            $parentId = $this->request->int('parent_id');
+            $ids = $this->request->raw('ids');
+
+            if (!is_array($ids) || $ids === [] || count($ids) > 200
+                || $ids !== array_filter($ids, fn($id) => is_int($id) ? $id > 0 : filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) !== false)) {
+                throw HttpException::badRequest('Feld „ids“ muss eine Liste von IDs sein.');
+            }
+
+            $ok = match ($type) {
+                'exercises' => Database::reorderExercises($this->requireWorkout($parentId)['id'], $ids),
+                'sets' => Database::reorderSets($this->requireExercise($parentId)['id'], $ids),
+                default => throw HttpException::badRequest('Feld „type“ hat einen ungültigen Wert.'),
+            };
+
+            if (!$ok) {
+                throw HttpException::badRequest('Die Reihenfolge passt nicht zu den gespeicherten Einträgen. Bitte Seite neu laden.');
+            }
+
+            $this->utils->json(['status' => 'success']);
+        });
+
         $this->router->map('GET', '/api/workout/[i:id]', function (string $id) {
             $workout = $this->requireWorkout((int)$id);
             $this->utils->json([

@@ -21,7 +21,7 @@
     <?php if (count($workout['exercises']) === 0) { ?>
         <p class="empty">Noch keine Übungen. Füge oben die erste hinzu.</p>
     <?php } else { ?>
-        <div class="stack">
+        <div class="stack" data-sortable="exercises" data-parent-id="<?= e($workout['id']) ?>">
             <?php foreach ($workout['exercises'] as $exercise) {
                 include __DIR__ . '/parts/exercise/exercise.php';
             } ?>

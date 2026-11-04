@@ -306,8 +306,30 @@ $after = db()->query("SELECT id, repetitions, unit, load FROM sets WHERE exercis
 check('duplicate set inserts a copy right after the original', $r['status'] === 303 && count($after) === 3 && (int)$after[0]['id'] === (int)$setIds[1] && (int)$after[2]['id'] === (int)$setIds[0] && $after[1]['unit'] === $after[0]['unit'] && (float)$after[1]['load'] === (float)$after[0]['load'], json_encode($after));
 request('POST', '/deleteSet', ['set_id' => $after[1]['id']]);
 
+// --- drag-and-drop order ---------------------------------------------------
+$setIds = db()->query("SELECT id FROM sets WHERE exercise_id=$exerciseId ORDER BY position, id")->fetchAll(PDO::FETCH_COLUMN);
+$reorder = fn(array $payload) => request('POST', '/api/reorder', json_encode($payload), ['Content-Type' => 'application/json']);
+$r = $reorder(['type' => 'sets', 'parent_id' => $exerciseId, 'ids' => [(int)$setIds[1], (int)$setIds[0]]]);
+$after = db()->query("SELECT id FROM sets WHERE exercise_id=$exerciseId ORDER BY position, id")->fetchAll(PDO::FETCH_COLUMN);
+check('reorder sets persists the new order', $r['status'] === 200 && $after === [$setIds[1], $setIds[0]], "got {$r['status']} " . json_encode($after));
+$r = $reorder(['type' => 'sets', 'parent_id' => $exerciseId, 'ids' => [(int)$setIds[0]]]);
+check('reorder with missing ids is rejected', $r['status'] === 400 && str_contains($r['body'], 'neu laden'), "got {$r['status']}");
+$r = $reorder(['type' => 'sets', 'parent_id' => $exerciseId, 'ids' => [(int)$setIds[0], (int)$setIds[1], 999999]]);
+check('reorder with foreign ids is rejected', $r['status'] === 400);
+$r = $reorder(['type' => 'sets', 'parent_id' => $exerciseId, 'ids' => 'nope']);
+check('reorder with malformed ids is rejected', $r['status'] === 400);
+$r = $reorder(['type' => 'workouts', 'parent_id' => $exerciseId, 'ids' => [1]]);
+check('reorder with unknown type is rejected', $r['status'] === 400);
+$r = $reorder(['type' => 'exercises', 'parent_id' => 999999, 'ids' => [1]]);
+check('reorder of unknown workout is 404', $r['status'] === 404);
+$reorder(['type' => 'sets', 'parent_id' => $exerciseId, 'ids' => [(int)$setIds[0], (int)$setIds[1]]]);
+
 request('POST', '/addExercise', ['workout_id' => $workoutId, 'exercise_name' => 'Zweite']);
 $exerciseIds = db()->query("SELECT id FROM exercises WHERE workout_id=$workoutId ORDER BY position, id")->fetchAll(PDO::FETCH_COLUMN);
+$r = $reorder(['type' => 'exercises', 'parent_id' => $workoutId, 'ids' => [(int)$exerciseIds[1], (int)$exerciseIds[0]]]);
+$after = db()->query("SELECT id FROM exercises WHERE workout_id=$workoutId ORDER BY position, id")->fetchAll(PDO::FETCH_COLUMN);
+check('reorder exercises persists the new order', $r['status'] === 200 && $after === [$exerciseIds[1], $exerciseIds[0]], "got {$r['status']} " . json_encode($after));
+$reorder(['type' => 'exercises', 'parent_id' => $workoutId, 'ids' => [(int)$exerciseIds[0], (int)$exerciseIds[1]]]);
 $r = request('POST', '/moveExercise', ['exercise_id' => $exerciseIds[1], 'direction' => 'up']);
 $plan = json_decode(request('GET', "/api/workout/$workoutId")['body'], true);
 check('move exercise up reorders the plan', $r['status'] === 303 && array_column($plan['workout']['exercises'], 'id') === [(int)$exerciseIds[1], (int)$exerciseIds[0]], json_encode(array_column($plan['workout']['exercises'], 'id')));

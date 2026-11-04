@@ -924,6 +924,55 @@ class Database
         return $positions;
     }
 
+    /** New order of a workout's exercises; false when $ids is not exactly the current set of exercises. */
+    public static function reorderExercises(int $workoutId, array $ids): bool
+    {
+        if (!self::reorder('exercises', 'workout_id', $workoutId, $ids)) {
+            return false;
+        }
+        self::touchWorkout($workoutId);
+        return true;
+    }
+
+    /** New order of an exercise's sets; false when $ids is not exactly the current set of sets. */
+    public static function reorderSets(int $exerciseId, array $ids): bool
+    {
+        if (!self::reorder('sets', 'exercise_id', $exerciseId, $ids)) {
+            return false;
+        }
+        self::touchWorkoutOfExercise($exerciseId);
+        return true;
+    }
+
+    private static function reorder(string $table, string $parentColumn, int $parentId, array $ids): bool
+    {
+        $db = self::pdo();
+        $db->beginTransaction();
+        try {
+            $current = array_keys(self::renumber($table, $parentColumn, $parentId));
+            $wanted = array_map('intval', $ids);
+
+            $sortedCurrent = $current;
+            $sortedWanted = $wanted;
+            sort($sortedCurrent);
+            sort($sortedWanted);
+            if ($sortedCurrent !== $sortedWanted) {
+                $db->rollBack();
+                return false;
+            }
+
+            $update = $db->prepare("UPDATE $table SET position = :position WHERE id = :id");
+            foreach ($wanted as $i => $id) {
+                $update->execute([':position' => $i + 1, ':id' => $id]);
+            }
+            $db->commit();
+            return true;
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
+
     private static function moveWithinSiblings(string $table, string $parentColumn, int $parentId, int $id, int $direction): void
     {
         $db = self::pdo();

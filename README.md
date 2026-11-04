@@ -68,6 +68,13 @@ icons come from the `icon()` helper in `src/helpers.php`. Edit forms are native
 `data-confirm="..."`. `public/manifest.webmanifest` makes the app installable; the PNG
 icons were generated from `public/img/icon.svg`.
 
+On the workout page every exercise is a collapsible `<details>` card with a one-line
+summary of its sets (`exercise_summary()` in the helpers); `public/js/exercises.js` keeps
+the open state per workout in `localStorage`. Exercises and sets are reordered by dragging
+their grip handle (`public/js/reorder.js`, Pointer Events, no library), which posts the
+new id order to `POST /api/reorder`; the up/down buttons in the edit sheets remain as the
+no-JS fallback.
+
 ## Installable app (PWA)
 
 `/sw.js` is a service worker rendered by PHP from `src/view/pwa/sw.js.php`, so its cache
