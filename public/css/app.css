@@ -1226,6 +1226,98 @@ tr.is-dragging > td {
 }
 
 /* --------------------------------------------------------------------------
+   Progress charts (js/charts.js renders the SVG)
+   -------------------------------------------------------------------------- */
+
+.chart {
+    position: relative;
+    margin: 8px 0 12px;
+}
+
+.chart-title {
+    margin-bottom: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.chart svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    touch-action: pan-y;
+}
+
+.chart .grid {
+    stroke: var(--border);
+    stroke-width: 1;
+}
+
+.chart .axis-text {
+    fill: var(--muted);
+    font-size: 11px;
+    font-family: var(--font);
+}
+
+.chart .area {
+    fill: var(--accent-soft);
+}
+
+.chart .line {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.chart .marker {
+    fill: var(--accent);
+    stroke: var(--surface);
+    stroke-width: 2;
+}
+
+.chart .end-label {
+    fill: var(--text);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--font);
+}
+
+.chart .crosshair {
+    stroke: var(--muted);
+    stroke-width: 1;
+}
+
+.chart .marker.is-active {
+    r: 6;
+}
+
+.chart-tooltip {
+    position: absolute;
+    top: 22px;
+    z-index: 3;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.chart-tooltip b {
+    display: block;
+    font-size: 14px;
+    color: var(--text);
+}
+
+/* --------------------------------------------------------------------------
    Log edit sheet
    -------------------------------------------------------------------------- */
 

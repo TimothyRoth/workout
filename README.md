@@ -54,6 +54,13 @@ and `POST /deleteLog`. In the session a set in seconds or minutes offers a count
 its duration inside the current-set card, with the same vibration and background
 notification as the rest timer.
 
+The history disclosure of an exercise on the logs page shows two small charts, rendered
+client-side by `public/js/charts.js` from `History::chartSeries()`: the best set per session
+(estimated 1RM, reps or duration, only while every session used the same unit) and the
+volume. Single series, accent hue, endpoint label, crosshair tooltip; the history table
+below is the table view. `GET /export.json` (download icon on the logs page) delivers all
+workouts, exercises, sets and logs as a JSON attachment, `Database::exportAll()`.
+
 `App\Http\Auth` keeps the login in a PHP session (`workout_session`, HttpOnly, SameSite=Lax,
 Secure on HTTPS). "Angemeldet bleiben" adds a `workout_remember` cookie for 30 days, backed
 by the `auth_tokens` table (selector + hashed validator, rotated on every use, revoked on

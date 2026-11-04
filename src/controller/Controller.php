@@ -117,6 +117,13 @@ class Controller
             $this->utils->renderView('log', ['title' => 'Logs', 'logs' => Database::getLogs()]);
         });
 
+        $this->router->map('GET', '/export.json', function () {
+            header('Content-Type: application/json; charset=utf-8');
+            header('Content-Disposition: attachment; filename="workout-export-' . date('Y-m-d') . '.json"');
+            header('Cache-Control: no-store');
+            echo json_encode(Database::exportAll(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
+        });
+
         $this->router->map('POST', '/editLog', function () {
             $log = $this->requireLog($this->request->int('log_id'));
             $duration = $this->request->int('duration', 0, 24 * 60);

@@ -388,6 +388,24 @@ check('logs page shows below-best percentage', str_contains($r['body'], '-100,0%
 check('logs page renders structured set labels', str_contains($r['body'], '>80 kg<') && str_contains($r['body'], '>Körpergewicht<'));
 check('logs page shows per-exercise history', str_contains($r['body'], 'Verlauf (3)') && str_contains($r['body'], '8 × 80 kg, 12 × KG'));
 
+// --- charts & export ---------------------------------------------------------
+$r = request('GET', '/logs');
+$charts = preg_match_all('/data-chart="([^"]+)"/', $r['body'], $chartMatches);
+$chartSpecs = array_map(fn($raw) => json_decode(html_entity_decode($raw, ENT_QUOTES, 'UTF-8'), true), $chartMatches[1]);
+$bestChart = array_values(array_filter($chartSpecs, fn($spec) => str_starts_with($spec['title'] ?? '', 'Bestes Set')));
+$volumeChart = array_values(array_filter($chartSpecs, fn($spec) => ($spec['title'] ?? '') === 'Volumen'));
+check('logs page carries chart data for exercises with history', $charts > 0 && $volumeChart !== [] && count($volumeChart[0]['points']) === 3, json_encode($chartSpecs));
+check('best-set chart skipped while the history mixes units', $bestChart === [], json_encode($bestChart));
+check('export link on the logs page', str_contains($r['body'], 'href="/export.json" download'));
+
+$r = request('GET', '/export.json');
+$export = json_decode($r['body'], true);
+check('export is a json attachment', $r['status'] === 200 && stripos($r['headers'], 'Content-Disposition: attachment; filename="workout-export-') !== false, $r['headers']);
+$exportedWorkout = array_values(array_filter($export['workouts'] ?? [], fn($w) => (int)$w['id'] === $workoutId))[0] ?? null;
+$exportedLog = array_values(array_filter($export['logs'] ?? [], fn($l) => (int)$l['id'] === $logId))[0] ?? null;
+check('export nests workouts, exercises, sets and logs', ($export['format'] ?? '') === 'workout-export' && ($exportedWorkout['exercises'][0]['sets'][0]['unit'] ?? null) === 'kg' && ($exportedWorkout['exercises'][0]['notes'] ?? null) === 'Sitz auf 4' && count($export['logs']) === 4 && ($exportedLog['exercises'][0]['sets'][0]['repetitions'] ?? null) === 8 && ($exportedLog['notes'] ?? '') === "Lief gut,\nSchulter zwickt", substr($r['body'], 0, 300));
+check('export carries no users or tokens', !str_contains($r['body'], 'password') && !str_contains($r['body'], 'validator'));
+
 // --- edit & delete log entries ---------------------------------------------
 $r = request('POST', '/api/workout/log', json_encode(['workout_id' => $workoutId, 'duration' => 20, 'notes' => 'Tippfehler', 'exercises' => [['exercise_id' => $exerciseId, 'name' => 'Bankdrücken', 'sets' => [['reps' => 8, 'unit' => 'kg', 'load' => 800, 'rest_time' => 60], ['reps' => 10, 'unit' => 'bw', 'load' => null, 'rest_time' => 60]]]]]), ['Content-Type' => 'application/json']);
 $fixLogId = (int)json_decode($r['body'], true)['id'];

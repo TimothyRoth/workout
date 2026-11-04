@@ -878,6 +878,65 @@ class Database
         return $logs;
     }
 
+    /**
+     * Everything the user owns, nested, for the JSON export (no users, no tokens).
+     */
+    public static function exportAll(): array
+    {
+        $db = self::pdo();
+        $workouts = $db->query("SELECT id, name, created_at, updated_at FROM workouts ORDER BY id")->fetchAll();
+        $exercises = $db->query("SELECT id, workout_id, name, notes, position FROM exercises ORDER BY workout_id, position, id")->fetchAll();
+        $sets = $db->query("SELECT id, exercise_id, repetitions, unit, load, rest_time, position FROM sets ORDER BY exercise_id, position, id")->fetchAll();
+
+        $setsByExercise = [];
+        foreach ($sets as $set) {
+            $set['load'] = $set['load'] === null ? null : (float)$set['load'];
+            $set['repetitions'] = (int)$set['repetitions'];
+            $set['rest_time'] = (int)$set['rest_time'];
+            $setsByExercise[$set['exercise_id']][] = $set;
+        }
+        $exercisesByWorkout = [];
+        foreach ($exercises as $exercise) {
+            $exercise['sets'] = $setsByExercise[$exercise['id']] ?? [];
+            $exercisesByWorkout[$exercise['workout_id']][] = $exercise;
+        }
+        foreach ($workouts as &$workout) {
+            $workout['exercises'] = $exercisesByWorkout[$workout['id']] ?? [];
+        }
+        unset($workout);
+
+        $logs = [];
+        foreach (array_reverse(self::getLogs()) as $log) {
+            $logs[] = [
+                'id' => (int)$log['id'],
+                'workout_id' => (int)$log['workout_id'],
+                'workout_name' => $log['workout_name'],
+                'duration' => (int)$log['duration'],
+                'workload' => (float)$log['actual_workload'],
+                'notes' => $log['notes'] ?? '',
+                'created_at' => $log['created_at'],
+                'exercises' => array_map(fn($exercise) => [
+                    'exercise_id' => $exercise['exercise_id'] === null ? null : (int)$exercise['exercise_id'],
+                    'name' => $exercise['name'],
+                    'sets' => array_map(fn($set) => [
+                        'repetitions' => (int)$set['repetitions'],
+                        'unit' => $set['unit'],
+                        'load' => $set['load'] === null ? null : (float)$set['load'],
+                        'rest_time' => (int)$set['rest_time'],
+                    ], $exercise['sets']),
+                ], $log['exercises']),
+            ];
+        }
+
+        return [
+            'format' => 'workout-export',
+            'version' => 1,
+            'exported_at' => gmdate('Y-m-d\TH:i:s\Z'),
+            'workouts' => $workouts,
+            'logs' => $logs,
+        ];
+    }
+
     public static function getLog(int $id): ?array
     {
         $stmt = self::pdo()->prepare("SELECT id, workout_id, duration, notes FROM workoutLog WHERE id = :id");

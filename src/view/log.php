@@ -46,6 +46,7 @@ $classify = static function (array $log): array {
 <header class="topbar">
     <a class="icon-btn" href="/" aria-label="Zurück"><?= icon('back') ?></a>
     <h1>Logs</h1>
+    <a class="icon-btn" href="/export.json" download aria-label="Alle Daten als JSON exportieren" title="Export (JSON)"><?= icon('download') ?></a>
 </header>
 
 <?php if (empty($logs)) { ?>
@@ -114,6 +115,10 @@ $classify = static function (array $log): array {
                                     <?php if (count($history) > 1) { ?>
                                         <details class="disclosure disclosure-nested">
                                             <summary>Verlauf (<?= count($history) ?>) <?= icon('chevron', 'icon-sm') ?></summary>
+                                            <?php foreach (\App\History::chartSeries($history) as $series) {
+                                                if ($series === null) { continue; } ?>
+                                                <div class="chart" data-chart="<?= e(json_encode($series, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)) ?>"></div>
+                                            <?php } ?>
                                             <table class="sets history">
                                                 <tbody>
                                                 <?php foreach (array_slice($history, 0, 10) as $entry) { ?>

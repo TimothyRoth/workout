@@ -11,6 +11,7 @@ import {initSteppers} from "app/stepper";
 import {initPwa} from "app/pwa";
 import {initExercises} from "app/exercises";
 import {initReorder} from "app/reorder";
+import {initCharts} from "app/charts";
 
 initDialogs();
 initConfirmations();
@@ -19,5 +20,6 @@ initPasswordToggles();
 initSteppers();
 initExercises();
 initReorder();
+initCharts();
 initSession();
 initPwa();
