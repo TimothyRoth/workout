@@ -12,6 +12,8 @@ import {initPwa} from "app/pwa";
 import {initExercises} from "app/exercises";
 import {initReorder} from "app/reorder";
 import {initCharts} from "app/charts";
+import {initCalendar} from "app/calendar";
+import {initPlateCalculator} from "app/plates";
 
 initDialogs();
 initConfirmations();
@@ -21,5 +23,7 @@ initSteppers();
 initExercises();
 initReorder();
 initCharts();
+initCalendar();
+initPlateCalculator();
 initSession();
 initPwa();

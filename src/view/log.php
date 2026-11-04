@@ -53,6 +53,7 @@ $classify = static function (array $log): array {
     <p class="empty">Noch keine Einträge. Starte ein Workout, dann erscheint es hier.</p>
 <?php } else { ?>
     <div class="stack">
+        <?php include __DIR__ . '/parts/log/calendar.php'; ?>
         <?php foreach ($logs as $log) {
             [$bestLabel, $bestClass, $prevLabel, $prevClass] = $classify($log);
             ?>

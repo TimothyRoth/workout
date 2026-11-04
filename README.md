@@ -61,6 +61,12 @@ volume. Single series, accent hue, endpoint label, crosshair tooltip; the histor
 below is the table view. `GET /export.json` (download icon on the logs page) delivers all
 workouts, exercises, sets and logs as a JSON attachment, `Database::exportAll()`.
 
+The logs page starts with a training calendar (`App\Calendar`, pure function of the
+log list): weekly streak, sessions this week and in the last four weeks, and a 16-week
+Monday-first heatmap of trained days (one hue, darker for two or more sessions). For kg
+sets the session offers "Scheiben pro Seite", a plate calculator sheet
+(`public/js/plates.js`) with a remembered bar weight.
+
 `App\Http\Auth` keeps the login in a PHP session (`workout_session`, HttpOnly, SameSite=Lax,
 Secure on HTTPS). "Angemeldet bleiben" adds a `workout_remember` cookie for 30 days, backed
 by the `auth_tokens` table (selector + hashed validator, rotated on every use, revoked on

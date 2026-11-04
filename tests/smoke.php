@@ -388,6 +388,22 @@ check('logs page shows below-best percentage', str_contains($r['body'], '-100,0%
 check('logs page renders structured set labels', str_contains($r['body'], '>80 kg<') && str_contains($r['body'], '>Körpergewicht<'));
 check('logs page shows per-exercise history', str_contains($r['body'], 'Verlauf (3)') && str_contains($r['body'], '8 × 80 kg, 12 × KG'));
 
+// --- training calendar -------------------------------------------------------
+$r = request('GET', '/logs');
+check('logs page shows the training calendar', str_contains($r['body'], 'class="card calendar"') && substr_count($r['body'], 'class="cal-day') === 16 * 7 && str_contains($r['body'], 'Woche in Folge'));
+check('today is marked as trained', preg_match('/class="cal-day cal-[12] is-today"/', $r['body']) === 1);
+check('session page has the plate calculator sheet', str_contains(request('GET', "/workout?workout_id=$workoutId")['body'], 'id="plate-calculator"'));
+
+require_once $root . '/vendor/autoload.php';
+$mkLog = fn(string $date) => ['created_at' => $date . ' 10:00:00', 'workout_name' => 'X', 'actual_workload' => 1];
+$cal = \App\Calendar::build([$mkLog('2026-11-02'), $mkLog('2026-10-28'), $mkLog('2026-10-20'), $mkLog('2026-10-01')], new DateTimeImmutable('2026-11-04 12:00:00'));
+check('calendar: streak counts consecutive weeks up to this week', $cal['streak'] === 3 && $cal['thisWeek'] === 1 && $cal['lastFourWeeks'] === 3, json_encode([$cal['streak'], $cal['thisWeek'], $cal['lastFourWeeks']]));
+$cal = \App\Calendar::build([$mkLog('2026-10-28'), $mkLog('2026-10-20')], new DateTimeImmutable('2026-11-04 12:00:00'));
+check('calendar: a week in progress without training keeps the streak', $cal['streak'] === 2 && $cal['thisWeek'] === 0);
+$cal = \App\Calendar::build([$mkLog('2026-10-14')], new DateTimeImmutable('2026-11-04 12:00:00'));
+check('calendar: a missed week ends the streak', $cal['streak'] === 0);
+check('calendar: grid is 16 Monday-first weeks ending today', count($cal['weeks']) === 16 && $cal['weeks'][0][0]['date'] === '2026-07-20' && $cal['weeks'][15][2]['today'] === true && $cal['weeks'][15][3]['future'] === true);
+
 // --- charts & export ---------------------------------------------------------
 $r = request('GET', '/logs');
 $charts = preg_match_all('/data-chart="([^"]+)"/', $r['body'], $chartMatches);

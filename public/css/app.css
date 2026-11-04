@@ -1318,6 +1318,158 @@ tr.is-dragging > td {
 }
 
 /* --------------------------------------------------------------------------
+   Training calendar
+   -------------------------------------------------------------------------- */
+
+.stats-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+.stats-3 .stat {
+    padding: 10px 8px;
+    text-align: center;
+}
+
+.cal {
+    margin-top: 14px;
+}
+
+.cal-months {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 3px;
+    margin-left: 26px;
+    height: 16px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.cal-months span {
+    white-space: nowrap;
+}
+
+.cal-body {
+    display: flex;
+    gap: 6px;
+}
+
+.cal-weekdays {
+    display: grid;
+    grid-template-rows: repeat(7, 1fr);
+    gap: 3px;
+    width: 20px;
+    font-size: 10px;
+    color: var(--muted);
+}
+
+.cal-weekdays span {
+    display: flex;
+    align-items: center;
+}
+
+.cal-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    grid-template-rows: repeat(7, 1fr);
+    grid-auto-flow: column;
+    gap: 3px;
+}
+
+.cal-day {
+    aspect-ratio: 1;
+    padding: 0;
+    border: 0;
+    border-radius: 3px;
+    background: var(--surface-2);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.cal-day.cal-1 {
+    background: color-mix(in oklab, var(--accent) 55%, var(--surface-2));
+}
+
+.cal-day.cal-2 {
+    background: var(--accent);
+}
+
+.cal-day.is-future {
+    background: transparent;
+    border: 1px dashed var(--border);
+    cursor: default;
+}
+
+.cal-day.is-today {
+    box-shadow: 0 0 0 2px var(--text);
+}
+
+.cal-day.is-selected {
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
+.cal-caption {
+    margin-top: 10px;
+    min-height: 20px;
+}
+
+/* --------------------------------------------------------------------------
+   Plate calculator
+   -------------------------------------------------------------------------- */
+
+.set-tools {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: -6px;
+}
+
+.link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 32px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.plates {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    min-height: 56px;
+}
+
+.plate {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 56px;
+    padding: 0 8px;
+    border-radius: 8px;
+    background: var(--surface-3);
+    border: 2px solid var(--border);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.plate-25 { height: 56px; background: var(--danger-soft); border-color: var(--danger); }
+.plate-20 { height: 52px; background: var(--accent-soft); border-color: var(--accent); }
+.plate-15 { height: 48px; background: var(--gold-soft); border-color: var(--gold); }
+.plate-10 { height: 44px; background: var(--success-soft); border-color: var(--success); }
+.plate-5 { height: 38px; }
+.plate-2-5 { height: 32px; font-size: 13px; }
+.plate-1-25 { height: 28px; font-size: 12px; }
+.plate-0-5 { height: 24px; font-size: 11px; }
+
+/* --------------------------------------------------------------------------
    Log edit sheet
    -------------------------------------------------------------------------- */
 

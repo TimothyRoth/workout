@@ -25,6 +25,33 @@
         </div>
     </div>
 
+    <dialog class="sheet" id="plate-calculator">
+        <div class="sheet-header">
+            <h2>Scheiben pro Seite</h2>
+            <button class="icon-btn" type="button" data-close aria-label="Schließen"><?= icon('close') ?></button>
+        </div>
+        <div class="sheet-body">
+            <div class="grid-2">
+                <label class="field">
+                    <span>Gewicht (kg)</span>
+                    <input class="input" id="plate-weight" type="number" inputmode="decimal" min="0" step="any">
+                </label>
+                <label class="field">
+                    <span>Stange</span>
+                    <select class="input" id="plate-bar">
+                        <option value="20">20 kg</option>
+                        <option value="15">15 kg</option>
+                        <option value="10">10 kg</option>
+                        <option value="0">ohne</option>
+                    </select>
+                </label>
+            </div>
+            <div class="plates" id="plate-result"></div>
+            <p class="hint" id="plate-rest"></p>
+        </div>
+        <div class="sheet-footer"></div>
+    </dialog>
+
     <dialog class="sheet" id="session-summary">
         <div class="sheet-header">
             <h2>Workout beenden</h2>

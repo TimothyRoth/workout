@@ -530,6 +530,7 @@ const renderCurrent = set => `
                 ${stepper(`<input class="input input-lg" id="cur-load" type="number" inputmode="decimal" min="0" step="any" data-step="${LOAD_STEPS[set.unit] ?? 1}" value="${esc(set.load ?? set.plannedLoad ?? "")}">`)}
             </label>`}
         </div>
+        ${set.unit === "kg" ? `<div class="set-tools"><button class="link-btn" type="button" data-dialog="plate-calculator" data-plates-for="cur-load">${plateIcon} Scheiben pro Seite</button></div>` : ""}
         ${renderSetTimer(set)}
         <button class="btn btn-primary btn-block btn-lg" id="cur-done" type="button">${set.done ? "Übernehmen" : "Satz abschließen"}</button>
     </div>
@@ -547,6 +548,7 @@ const svg = path => `<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" s
 const minusIcon = svg('<path d="M5 12h14"/>');
 const plusIcon = svg('<path d="M12 5v14M5 12h14"/>');
 
+const plateIcon = svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/>');
 const timerIcon = svg('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/>');
 const noteIcon = svg('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>');
 const checkIcon = '<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
