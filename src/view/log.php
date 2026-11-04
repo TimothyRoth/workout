@@ -55,13 +55,15 @@ $classify = static function (array $log): array {
         <?php foreach ($logs as $log) {
             [$bestLabel, $bestClass, $prevLabel, $prevClass] = $classify($log);
             ?>
-            <article class="card log">
+            <article class="card log" id="log-<?= e($log['id']) ?>">
                 <header class="card-header">
-                    <div>
+                    <div class="card-header-text">
                         <h2><?= e($log['workout_name']) ?><?php if ($log['workout_deleted']) { ?><span class="tag">gelöscht</span><?php } ?></h2>
                         <p class="hint"><?= e(local_datetime($log['created_at'])) ?></p>
                     </div>
+                    <button class="icon-btn" type="button" data-dialog="edit-log-<?= e($log['id']) ?>" aria-label="Eintrag bearbeiten"><?= icon('edit') ?></button>
                 </header>
+                <?php include __DIR__ . '/parts/log/logEditContainer.php'; ?>
 
                 <?php if (($log['notes'] ?? '') !== '') { ?>
                     <p class="log-notes"><?= icon('note', 'icon-sm') ?><span><?= e($log['notes']) ?></span></p>

@@ -39,6 +39,7 @@ let session = null;
 let bound = false;
 let elapsedTimer = null;
 let restTimer = null;
+let setTimer = null;
 
 export const initSession = () => {
     const startButton = $("start-workout");
@@ -85,6 +86,11 @@ const start = async (workoutId, workoutUpdated) => {
     } else {
         session.rest = null;
     }
+    if (session.timer && session.timer.endsAt > Date.now()) {
+        startSetTimerTicker();
+    } else {
+        session.timer = null;
+    }
 };
 
 const bind = () => {
@@ -107,12 +113,21 @@ const bind = () => {
         if (document.visibilityState !== "visible") return;
         closeRestNotification();
         if (session?.rest && restTimer) startRestTicker();
+        if (session?.timer && setTimer) startSetTimerTicker();
     });
     $("summary-discard").addEventListener("click", discard);
 
     $("session-list").addEventListener("click", event => {
         if (event.target.closest("#cur-done")) {
             completeCurrent();
+            return;
+        }
+        if (event.target.closest("#set-timer-start")) {
+            startSetTimer();
+            return;
+        }
+        if (event.target.closest("#set-timer-stop")) {
+            stopSetTimer();
             return;
         }
         const row = event.target.closest(".set-row");
@@ -162,6 +177,7 @@ const build = async (workoutId, workoutUpdated) => {
         startTime: Date.now(),
         current: {e: 0, s: 0},
         rest: null,
+        timer: null, // running countdown of a timed set: {e, s, endsAt, total}
         notes: "",
         last: last ? {workload: Number(last.workload), createdAt: last.created_at} : null,
         exercises: workout.exercises.map(exercise => {
@@ -246,6 +262,7 @@ const doneCount = () => allSets().filter(({set}) => set.done).length;
 
 const setCurrent = (e, s) => {
     if (isCurrent(e, s)) return;
+    clearSetTimer();
     session.current = {e, s};
     save();
     render();
@@ -258,6 +275,7 @@ const completeCurrent = () => {
     set.reps = $("cur-reps")?.value.trim() ?? set.reps;
     if (set.unit !== "bw") set.load = $("cur-load")?.value.trim() ?? set.load;
     set.done = true;
+    clearSetTimer();
     checkRecord(session.exercises[session.current.e], set);
 
     const next = nextPending(session.current.e, session.current.s);
@@ -311,6 +329,80 @@ const endRest = () => {
     save();
 };
 
+// --- timed sets (seconds / minutes) ---------------------------------------
+// The current set's load is the duration; "Timer starten" counts it down in place.
+
+const isTimed = set => set.unit === "s" || set.unit === "min";
+
+const timedSeconds = set => {
+    const value = parseFloat(String($("cur-load")?.value ?? set.load ?? set.plannedLoad ?? "").replace(",", ".")) || 0;
+    return Math.round(set.unit === "min" ? value * 60 : value);
+};
+
+const startSetTimer = () => {
+    const set = currentSet();
+    if (!set || !isTimed(set)) return;
+    const seconds = timedSeconds(set);
+    if (seconds <= 0) return;
+    set.load = $("cur-load")?.value.trim() ?? set.load;
+    session.timer = {e: session.current.e, s: session.current.s, endsAt: Date.now() + seconds * 1000, total: seconds * 1000};
+    save();
+    render();
+    startSetTimerTicker();
+};
+
+const stopSetTimer = () => {
+    clearSetTimer();
+    save();
+    render();
+};
+
+const clearSetTimer = () => {
+    session.timer = null;
+    clearInterval(setTimer);
+    setTimer = null;
+};
+
+const startSetTimerTicker = () => {
+    clearInterval(setTimer);
+    const tick = () => {
+        if (!session.timer) return;
+        const remaining = session.timer.endsAt - Date.now();
+        if (remaining <= 0) {
+            navigator.vibrate?.([300, 150, 300, 150, 300]);
+            if (document.visibilityState !== "visible") showNotification("Zeit um", "Der Satz ist geschafft – abschließen und weiter.");
+            clearSetTimer();
+            save();
+            render();
+            return;
+        }
+        const remainingEl = $("set-timer-remaining");
+        if (remainingEl) remainingEl.textContent = formatDuration(remaining);
+        const fill = $("set-timer-fill");
+        if (fill) fill.style.width = `${Math.max(0, 1 - remaining / session.timer.total) * 100}%`;
+    };
+    tick();
+    setTimer = setInterval(tick, 250);
+};
+
+const renderSetTimer = set => {
+    if (!isTimed(set) || set.done) return "";
+    const running = session.timer && isCurrent(session.timer.e, session.timer.s) && session.timer.endsAt > Date.now();
+    if (running) {
+        return `
+            <div class="set-timer">
+                <div class="set-timer-fill" id="set-timer-fill"></div>
+                <b id="set-timer-remaining">${formatDuration(session.timer.endsAt - Date.now())}</b>
+                <button class="btn btn-ghost" type="button" id="set-timer-stop">Stopp</button>
+            </div>`;
+    }
+    return `
+        <div class="set-timer">
+            <span class="hint">Countdown für diesen Satz</span>
+            <button class="btn btn-ghost" type="button" id="set-timer-start">${timerIcon} Timer starten</button>
+        </div>`;
+};
+
 // --- timers -------------------------------------------------------------
 
 const startElapsed = () => {
@@ -329,7 +421,7 @@ const startRestTicker = () => {
         const remaining = session.rest.endsAt - Date.now();
         if (remaining <= 0) {
             navigator.vibrate?.([300, 150, 300]);
-            if (document.visibilityState !== "visible") showRestNotification();
+            if (document.visibilityState !== "visible") showNotification("Pause vorbei", "Weiter geht’s mit dem nächsten Satz.");
             endRest();
             return;
         }
@@ -352,13 +444,13 @@ const requestNotificationPermission = () => {
     Notification.requestPermission().catch(() => {});
 };
 
-const showRestNotification = async () => {
+const showNotification = async (title, body) => {
     if (!("Notification" in window) || Notification.permission !== "granted") return;
-    const options = {body: "Weiter geht’s mit dem nächsten Satz.", tag: NOTIFICATION_TAG, renotify: true, vibrate: [300, 150, 300], icon: "/img/icon-192.png", badge: "/img/icon-192.png"};
+    const options = {body, tag: NOTIFICATION_TAG, renotify: true, vibrate: [300, 150, 300], icon: "/img/icon-192.png", badge: "/img/icon-192.png"};
     try {
         const registration = await navigator.serviceWorker?.getRegistration();
-        if (registration) await registration.showNotification("Pause vorbei", options);
-        else new Notification("Pause vorbei", options);
+        if (registration) await registration.showNotification(title, options);
+        else new Notification(title, options);
     } catch (error) {
         console.warn("Notification failed.", error);
     }
@@ -375,7 +467,8 @@ const closeRestNotification = async () => {
 const stopTimers = () => {
     clearInterval(elapsedTimer);
     clearInterval(restTimer);
-    elapsedTimer = restTimer = null;
+    clearInterval(setTimer);
+    elapsedTimer = restTimer = setTimer = null;
 };
 
 // --- rendering ----------------------------------------------------------
@@ -437,6 +530,7 @@ const renderCurrent = set => `
                 ${stepper(`<input class="input input-lg" id="cur-load" type="number" inputmode="decimal" min="0" step="any" data-step="${LOAD_STEPS[set.unit] ?? 1}" value="${esc(set.load ?? set.plannedLoad ?? "")}">`)}
             </label>`}
         </div>
+        ${renderSetTimer(set)}
         <button class="btn btn-primary btn-block btn-lg" id="cur-done" type="button">${set.done ? "Übernehmen" : "Satz abschließen"}</button>
     </div>
 `;
@@ -453,6 +547,7 @@ const svg = path => `<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" s
 const minusIcon = svg('<path d="M5 12h14"/>');
 const plusIcon = svg('<path d="M12 5v14M5 12h14"/>');
 
+const timerIcon = svg('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/>');
 const noteIcon = svg('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>');
 const checkIcon = '<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
 

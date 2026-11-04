@@ -80,6 +80,17 @@ enum Unit: string
         };
     }
 
+    /** Unit symbol behind a load input: "kg", "s", "min"; empty for bodyweight. */
+    public function symbol(): string
+    {
+        return match ($this) {
+            self::Bodyweight => '',
+            self::Kg => 'kg',
+            self::Seconds => 's',
+            self::Minutes => 'min',
+        };
+    }
+
     /** Short form used in compact set lists: "8 × 80 kg", "12 × KG", "1 × 45 s". */
     public function short(float|int|string|null $load): string
     {

@@ -117,6 +117,20 @@ class Controller
             $this->utils->renderView('log', ['title' => 'Logs', 'logs' => Database::getLogs()]);
         });
 
+        $this->router->map('POST', '/editLog', function () {
+            $log = $this->requireLog($this->request->int('log_id'));
+            $duration = $this->request->int('duration', 0, 24 * 60);
+            $notes = $this->request->text('notes', 1000);
+            Database::updateLog($log['id'], $duration, $notes, $this->parseLogSetCorrections($this->request->raw('sets')));
+            $this->utils->redirect('/logs', [], 'log-' . $log['id']);
+        });
+
+        $this->router->map('POST', '/deleteLog', function () {
+            $log = $this->requireLog($this->request->int('log_id'));
+            Database::deleteLog($log['id']);
+            $this->utils->redirect('/logs');
+        });
+
         $this->router->map('GET', '/workout', function () {
             $workout = $this->requireWorkout($this->request->int('workout_id'));
             $this->utils->renderView('workout', [
@@ -381,6 +395,43 @@ class Controller
     private function requireExercise(int $id): array
     {
         return Database::getExercise($id) ?? throw HttpException::notFound('Übung nicht gefunden.');
+    }
+
+    private function requireLog(int $id): array
+    {
+        return Database::getLog($id) ?? throw HttpException::notFound('Eintrag nicht gefunden.');
+    }
+
+    /**
+     * sets[<log set id>][reps|load] from the log edit sheet → id => [repetitions, load].
+     * The load is kept as entered (null when empty); updateLog drops it for bodyweight sets.
+     */
+    private function parseLogSetCorrections(mixed $raw): array
+    {
+        if ($raw === null) {
+            return [];
+        }
+        if (!is_array($raw) || count($raw) > 500) {
+            throw HttpException::badRequest('Sätze sind ungültig.');
+        }
+        $sets = [];
+        foreach ($raw as $id => $values) {
+            $setId = filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            $reps = filter_var(is_array($values) ? ($values['reps'] ?? null) : null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0, 'max_range' => 10000]]);
+            if ($setId === false || $reps === false) {
+                throw HttpException::badRequest('Ein Satz hat ungültige Werte.');
+            }
+            $loadText = str_replace(',', '.', trim((string)($values['load'] ?? '')));
+            $load = null;
+            if ($loadText !== '') {
+                if (!is_numeric($loadText) || (float)$loadText < 0 || (float)$loadText > 100000) {
+                    throw HttpException::badRequest('Ein Satz hat eine ungültige Last.');
+                }
+                $load = (float)$loadText;
+            }
+            $sets[$setId] = ['repetitions' => $reps, 'load' => $load];
+        }
+        return $sets;
     }
 
     private function requireSet(int $id): array

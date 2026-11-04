@@ -1226,6 +1226,90 @@ tr.is-dragging > td {
 }
 
 /* --------------------------------------------------------------------------
+   Log edit sheet
+   -------------------------------------------------------------------------- */
+
+.card-header-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.log-edit-exercise h3 {
+    margin-bottom: 6px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.log-edit-set {
+    display: grid;
+    grid-template-columns: 28px 1fr 1fr 36px;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.log-edit-set .num {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.log-edit-set .input {
+    min-height: 44px;
+    padding: 8px 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.log-edit-set .log-edit-unit {
+    grid-column: 3 / span 2;
+}
+
+/* --------------------------------------------------------------------------
+   Timed-set countdown inside the current set
+   -------------------------------------------------------------------------- */
+
+.set-timer {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+}
+
+.set-timer-fill {
+    position: absolute;
+    inset: 0;
+    width: 0;
+    background: var(--accent-soft);
+    transition: width .25s linear;
+}
+
+.set-timer > * {
+    position: relative;
+}
+
+.set-timer b {
+    flex: 1;
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.set-timer .hint {
+    flex: 1;
+}
+
+.set-timer .btn {
+    min-height: 40px;
+    padding: 0 14px;
+    font-size: 14px;
+}
+
+/* --------------------------------------------------------------------------
    Login
    -------------------------------------------------------------------------- */
 

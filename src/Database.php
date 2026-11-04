@@ -863,7 +863,7 @@ class Database
                 $logOfExercise[$exerciseId] = $logId;
             }
         }
-        foreach (self::pdo()->query("SELECT log_exercise_id, repetitions, unit, load, rest_time FROM logSets ORDER BY log_exercise_id, position, id") as $set) {
+        foreach (self::pdo()->query("SELECT id, log_exercise_id, repetitions, unit, load, rest_time FROM logSets ORDER BY log_exercise_id, position, id") as $set) {
             $logId = $logOfExercise[$set['log_exercise_id']] ?? null;
             if ($logId !== null) {
                 $exercisesByLog[$logId][$set['log_exercise_id']]['sets'][] = $set;
@@ -876,6 +876,71 @@ class Database
         unset($log);
 
         return $logs;
+    }
+
+    public static function getLog(int $id): ?array
+    {
+        $stmt = self::pdo()->prepare("SELECT id, workout_id, duration, notes FROM workoutLog WHERE id = :id");
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
+    }
+
+    /**
+     * Correct a logged session: duration, notes and the reps/load of its sets
+     * ($sets = log set id => ['repetitions' => int, 'load' => ?float]); sets of
+     * other logs are ignored. The workload is recomputed from all sets.
+     */
+    public static function updateLog(int $id, int $duration, string $notes, array $sets): void
+    {
+        $db = self::pdo();
+        $db->beginTransaction();
+        try {
+            $update = $db->prepare("
+                UPDATE logSets SET repetitions = :repetitions, load = :load
+                WHERE id = :id AND log_exercise_id IN (SELECT id FROM logExercises WHERE log_id = :log_id)
+            ");
+            $unitOf = $db->prepare("
+                SELECT unit FROM logSets
+                WHERE id = :id AND log_exercise_id IN (SELECT id FROM logExercises WHERE log_id = :log_id)
+            ");
+            foreach ($sets as $setId => $values) {
+                $unitOf->execute([':id' => $setId, ':log_id' => $id]);
+                $unit = Unit::tryFrom((string)$unitOf->fetchColumn());
+                if ($unit === null) {
+                    continue;
+                }
+                $update->execute([
+                    ':repetitions' => (int)$values['repetitions'],
+                    ':load' => $unit->needsLoad() ? $values['load'] : null,
+                    ':id' => $setId,
+                    ':log_id' => $id,
+                ]);
+            }
+
+            $all = $db->prepare("
+                SELECT ls.repetitions, ls.unit, ls.load FROM logSets ls
+                JOIN logExercises le ON le.id = ls.log_exercise_id WHERE le.log_id = :log_id
+            ");
+            $all->execute([':log_id' => $id]);
+            $workload = 0.0;
+            foreach ($all->fetchAll() as $set) {
+                $unit = Unit::tryFrom((string)$set['unit']) ?? Unit::Kg;
+                $workload += $unit->workload((int)$set['repetitions'], $set['load'] === null ? null : (float)$set['load']);
+            }
+
+            $db->prepare("UPDATE workoutLog SET duration = :duration, notes = :notes, workload = :workload, updated_at = CURRENT_TIMESTAMP WHERE id = :id")
+                ->execute([':duration' => $duration, ':notes' => $notes, ':workload' => $workload, ':id' => $id]);
+            $db->commit();
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
+
+    public static function deleteLog(int $id): void
+    {
+        self::pdo()->prepare("DELETE FROM workoutLog WHERE id = :id")->execute([':id' => $id]);
     }
 
     /**

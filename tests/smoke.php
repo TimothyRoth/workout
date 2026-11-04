@@ -388,6 +388,24 @@ check('logs page shows below-best percentage', str_contains($r['body'], '-100,0%
 check('logs page renders structured set labels', str_contains($r['body'], '>80 kg<') && str_contains($r['body'], '>Körpergewicht<'));
 check('logs page shows per-exercise history', str_contains($r['body'], 'Verlauf (3)') && str_contains($r['body'], '8 × 80 kg, 12 × KG'));
 
+// --- edit & delete log entries ---------------------------------------------
+$r = request('POST', '/api/workout/log', json_encode(['workout_id' => $workoutId, 'duration' => 20, 'notes' => 'Tippfehler', 'exercises' => [['exercise_id' => $exerciseId, 'name' => 'Bankdrücken', 'sets' => [['reps' => 8, 'unit' => 'kg', 'load' => 800, 'rest_time' => 60], ['reps' => 10, 'unit' => 'bw', 'load' => null, 'rest_time' => 60]]]]]), ['Content-Type' => 'application/json']);
+$fixLogId = (int)json_decode($r['body'], true)['id'];
+$fixSets = db()->query("SELECT ls.id, ls.unit FROM logSets ls JOIN logExercises le ON le.id = ls.log_exercise_id WHERE le.log_id=$fixLogId ORDER BY ls.position")->fetchAll(PDO::FETCH_ASSOC);
+$r = request('GET', '/logs');
+check('logs page has an edit sheet per entry', str_contains($r['body'], "id=\"edit-log-$fixLogId\"") && str_contains($r['body'], "name=\"sets[{$fixSets[0]['id']}][load]\""));
+$r = request('POST', '/editLog', ['log_id' => $fixLogId, 'duration' => 25, 'notes' => 'korrigiert', 'sets' => [$fixSets[0]['id'] => ['reps' => 8, 'load' => '80,5'], $fixSets[1]['id'] => ['reps' => 11, 'load' => '999'], 999999 => ['reps' => 1, 'load' => '1']]]);
+$fixed = db()->query("SELECT duration, notes, workload FROM workoutLog WHERE id=$fixLogId")->fetch(PDO::FETCH_ASSOC);
+$fixedSets = db()->query("SELECT ls.repetitions, ls.load FROM logSets ls JOIN logExercises le ON le.id = ls.log_exercise_id WHERE le.log_id=$fixLogId ORDER BY ls.position")->fetchAll(PDO::FETCH_ASSOC);
+check('edit log redirects to the entry', $r['status'] === 303 && $r['location'] === "/logs#log-$fixLogId", "got {$r['status']} {$r['location']}");
+check('edit log updates duration, notes and sets, recomputes workload', (int)$fixed['duration'] === 25 && $fixed['notes'] === 'korrigiert' && (float)$fixed['workload'] === 655.0 && (float)$fixedSets[0]['load'] === 80.5 && (int)$fixedSets[1]['repetitions'] === 11 && $fixedSets[1]['load'] === null, json_encode([$fixed, $fixedSets]));
+$r = request('POST', '/editLog', ['log_id' => $fixLogId, 'duration' => 25, 'notes' => '', 'sets' => [$fixSets[0]['id'] => ['reps' => 'acht', 'load' => '80']]]);
+check('edit log rejects invalid reps', $r['status'] === 400, "got {$r['status']}");
+$r = request('POST', '/editLog', ['log_id' => 999999, 'duration' => 25]);
+check('edit unknown log 404', $r['status'] === 404);
+$r = request('POST', '/deleteLog', ['log_id' => $fixLogId]);
+check('delete log removes the entry and its sets', $r['status'] === 303 && (int)db()->query("SELECT COUNT(*) FROM workoutLog WHERE id=$fixLogId")->fetchColumn() === 0 && (int)db()->query("SELECT COUNT(*) FROM logSets WHERE id={$fixSets[0]['id']}")->fetchColumn() === 0);
+
 // --- plan write-back -------------------------------------------------------
 $planSet = db()->query("SELECT id, repetitions, load FROM sets WHERE exercise_id=$exerciseId AND unit='kg' ORDER BY position, id LIMIT 1")->fetch(PDO::FETCH_ASSOC);
 $writeBack = fn(array $sets, bool $update) => json_encode(['workout_id' => $workoutId, 'duration' => 30, 'update_plan' => $update, 'exercises' => [['exercise_id' => $exerciseId, 'name' => 'Bankdrücken', 'sets' => $sets]]]);

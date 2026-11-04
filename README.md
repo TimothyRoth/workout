@@ -48,6 +48,12 @@ name inputs get a `<datalist>` of every name ever used in plans or logs
 (`Database::getExerciseNames()`), so the same exercise keeps the same spelling and its
 history and records stay matched.
 
+Logged sessions can be corrected from the logs page (edit sheet per entry: duration, reps
+and loads of every set, note; the workload is recomputed) or deleted; `POST /editLog`
+and `POST /deleteLog`. In the session a set in seconds or minutes offers a countdown of
+its duration inside the current-set card, with the same vibration and background
+notification as the rest timer.
+
 `App\Http\Auth` keeps the login in a PHP session (`workout_session`, HttpOnly, SameSite=Lax,
 Secure on HTTPS). "Angemeldet bleiben" adds a `workout_remember` cookie for 30 days, backed
 by the `auth_tokens` table (selector + hashed validator, rotated on every use, revoked on
