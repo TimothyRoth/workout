@@ -15,4 +15,6 @@
             } ?>
         </ul>
     <?php } ?>
+
+    <?php include __DIR__ . '/parts/installCard.php'; ?>
 </div>

@@ -20,4 +20,7 @@
     <script type="module" src="<?= asset('/js/app.js') ?>"></script>
 </head>
 <body>
+<div class="offline-banner" data-offline-banner hidden role="status">
+    <?= icon('offline', 'icon-sm') ?> Offline – du siehst den zuletzt geladenen Stand, Änderungen sind gerade nicht möglich.
+</div>
 <main class="app">

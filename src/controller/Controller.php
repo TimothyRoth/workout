@@ -59,6 +59,12 @@ class Controller
             $workout = $this->requireWorkout($this->request->int('workout_id'));
             $this->utils->renderView('workout', ['title' => $workout['name'], 'workout' => $workout]);
         });
+
+        // The service worker is rendered by PHP so its cache name carries the deployed
+        // commit: every release activates a fresh cache and drops the old one.
+        $this->router->map('GET', '/sw.js', function () {
+            $this->utils->renderServiceWorker();
+        });
     }
 
     // ---------------------------------------------------------------

@@ -6,11 +6,12 @@ Lightweight PHP + SQLite workout tracker, built for one person on a phone.
 
 ```bash
 composer install
-php -S 127.0.0.1:8080 -t public
+php -S 127.0.0.1:8080 -t public public/index.php
 ```
 
 The SQLite file is `workout.db` in the project root (override with the `WORKOUT_DB`
-environment variable). Schema migrations run automatically on the first request;
+environment variable). `public/index.php` is passed as the router script because the built-in
+server would otherwise answer `/sw.js` (a route, not a file) with its own 404. Schema migrations run automatically on the first request;
 the current schema version is stored in SQLite's `PRAGMA user_version`.
 
 ## Test
@@ -47,6 +48,16 @@ icons come from the `icon()` helper in `src/helpers.php`. Edit forms are native
 `<dialog>` bottom sheets opened with `data-dialog="<id>"`; delete forms ask with
 `data-confirm="..."`. `public/manifest.webmanifest` makes the app installable; the PNG
 icons were generated from `public/img/icon.svg`.
+
+## Installable app (PWA)
+
+`/sw.js` is a service worker rendered by PHP from `src/view/pwa/sw.js.php`, so its cache
+name carries the deployed commit and every release drops the old cache. It serves the
+versioned assets cache-first and the three pages network-first with a cache fallback, so
+the last seen workout stays readable offline (saving a session still needs the network).
+`public/js/pwa.js` registers it (HTTPS only), shows the install card on the front page
+for phones (native prompt where the browser offers one, otherwise platform hints, dismiss
+is remembered in `localStorage`) and toggles the offline banner in the layout.
 
 ## Deploy
 

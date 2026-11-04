@@ -50,6 +50,11 @@ function icon(string $name, string $class = ''): string
         'up'      => '<path d="M18 15l-6-6-6 6"/>',
         'down'    => '<path d="M6 9l6 6 6-6"/>',
         'copy'    => '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
+        'phone'   => '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/>',
+        'share'   => '<path d="M12 3v12M8 7l4-4 4 4"/><path d="M4 13v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/>',
+        'more'    => '<circle cx="12" cy="5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="19" r="1" fill="currentColor"/>',
+        'download' => '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>',
+        'offline' => '<path d="M2 2l20 20"/><path d="M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 5.2-2.8M12 20h.01"/><path d="M16.7 11.5A10 10 0 0 1 19 13M1.4 8.6A16 16 0 0 1 8 5M22.6 8.6a16 16 0 0 0-8-4.3"/>',
     ];
 
     $classes = trim('icon ' . $class);

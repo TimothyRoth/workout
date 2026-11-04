@@ -18,6 +18,18 @@ class Utils
         include __DIR__ . '/view/parts/footer.php';
     }
 
+    /**
+     * Serve the service worker from src/view/pwa/sw.js.php. Must not be cached by the
+     * browser (the SW update check needs the fresh file) and is scoped to "/".
+     */
+    public function renderServiceWorker(): void
+    {
+        header('Content-Type: application/javascript; charset=utf-8');
+        header('Cache-Control: no-cache');
+        header('Service-Worker-Allowed: /');
+        include __DIR__ . '/view/pwa/sw.js.php';
+    }
+
     #[NoReturn]
     public function json(array $payload, int $status = 200): void
     {

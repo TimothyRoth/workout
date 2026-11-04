@@ -44,8 +44,8 @@ function seedLegacyDatabase(string $path): void
 
 $port = 18000 + random_int(0, 999);
 $cmd = sprintf(
-    'WORKOUT_DB=%s php -S 127.0.0.1:%d -t %s > %s 2>&1 & echo $!',
-    escapeshellarg($dbPath), $port, escapeshellarg($root . '/public'), escapeshellarg($tmpDir . '/server.log')
+    'WORKOUT_DB=%s php -S 127.0.0.1:%d -t %s %s > %s 2>&1 & echo $!',
+    escapeshellarg($dbPath), $port, escapeshellarg($root . '/public'), escapeshellarg($root . '/public/index.php'), escapeshellarg($tmpDir . '/server.log')
 );
 $pid = (int)trim((string)shell_exec($cmd));
 register_shutdown_function(function () use ($pid, $tmpDir) {
@@ -93,7 +93,7 @@ function request(string $method, string $path, array|string|null $body = null, a
     curl_close($ch);
     $rawHeaders = substr((string)$raw, 0, $headerSize);
     $location = preg_match('/^Location:\s*(.+)$/mi', $rawHeaders, $m) ? trim($m[1]) : null;
-    return ['status' => $status, 'body' => substr((string)$raw, $headerSize), 'location' => $location];
+    return ['status' => $status, 'headers' => $rawHeaders, 'body' => substr((string)$raw, $headerSize), 'location' => $location];
 }
 
 function check(string $name, bool $ok, string $detail = ''): void
@@ -123,9 +123,21 @@ check('frontpage 200', $r['status'] === 200, "got {$r['status']}");
 check('entry module is versioned', preg_match('/\/js\/app\.js\?v=[0-9a-z]+/', $r['body']) === 1);
 check('stylesheet is versioned', preg_match('/\/css\/app\.css\?v=[0-9a-z]+/', $r['body']) === 1);
 check('manifest is linked', str_contains($r['body'], 'rel="manifest"'));
+check('apple touch icon is linked', str_contains($r['body'], 'rel="apple-touch-icon"'));
+check('install card is rendered hidden', preg_match('/<section class="install-card" data-install-card hidden/', $r['body']) === 1);
+check('offline banner is rendered hidden', preg_match('/<div class="offline-banner" data-offline-banner hidden/', $r['body']) === 1);
+
 $jsModules = array_map(fn($f) => basename($f, '.js'), glob($root . '/public/js/*.js') ?: []);
 $importMap = preg_match('/<script type="importmap">(.*?)<\/script>/s', $r['body'], $m) ? json_decode($m[1], true) : null;
 check('import map versions every js module', is_array($importMap) && count(array_filter($jsModules, fn($name) => preg_match('/\?v=[0-9a-z]+$/', $importMap['imports']["app/$name"] ?? '') === 1)) === count($jsModules), json_encode($importMap));
+
+$r = request('GET', '/sw.js');
+check('service worker 200', $r['status'] === 200, "got {$r['status']}");
+check('service worker is javascript', stripos($r['headers'], 'Content-Type: application/javascript') !== false, $r['headers']);
+check('service worker is not browser-cached', stripos($r['headers'], 'Cache-Control: no-cache') !== false);
+check('service worker cache name carries the version', preg_match('/const CACHE = \'workout-[0-9a-z]+\';/', $r['body']) === 1);
+check('service worker has a fetch handler', str_contains($r['body'], "addEventListener('fetch'"));
+check('service worker has no leaked php', !str_contains($r['body'], '<?'));
 
 $r = request('GET', '/logs');
 check('logs page 200', $r['status'] === 200, "got {$r['status']}");

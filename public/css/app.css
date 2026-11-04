@@ -317,6 +317,12 @@ input[type="number"]::-webkit-inner-spin-button {
     border-radius: var(--radius);
 }
 
+.btn-sm {
+    min-height: 40px;
+    padding: 0 14px;
+    font-size: 15px;
+}
+
 .btn[disabled],
 .btn.is-busy {
     opacity: .6;
@@ -1030,6 +1036,88 @@ select.input {
     min-height: 40px;
     padding: 0 14px;
     font-size: 14px;
+}
+
+/* --------------------------------------------------------------------------
+   Installable app: install card (front page) and offline banner
+   -------------------------------------------------------------------------- */
+
+.install-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    align-items: start;
+    gap: 10px 12px;
+    padding: 14px 44px 14px 14px;
+    background: var(--accent-soft);
+    border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
+    border-radius: var(--radius);
+}
+
+.install-card-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: var(--accent-contrast);
+}
+
+.install-card-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+}
+
+.install-card-text strong {
+    display: block;
+    margin-bottom: 2px;
+}
+
+.install-card-text p {
+    color: var(--muted);
+}
+
+.install-card-hint {
+    margin-top: 8px;
+    color: var(--text) !important;
+}
+
+.install-card-hint .icon {
+    vertical-align: -3px;
+}
+
+.install-card > .btn {
+    grid-column: 2;
+    justify-self: start;
+}
+
+.install-card-close {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    color: var(--muted);
+}
+
+.offline-banner {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: calc(8px + var(--safe-top)) 16px 8px;
+    background: var(--warning-soft);
+    color: var(--text);
+    font-size: 14px;
+    border-bottom: 1px solid color-mix(in oklab, var(--warning) 40%, transparent);
+}
+
+.offline-banner .icon {
+    flex: none;
+    color: var(--warning);
 }
 
 /* --------------------------------------------------------------------------
