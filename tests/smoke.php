@@ -225,6 +225,7 @@ check('workout stored trimmed', $workoutId > 0);
 
 $r = request('GET', '/');
 check('workout name is html-escaped', str_contains($r['body'], 'Smoke &lt;b&gt;Test&lt;/b&gt;') && !str_contains($r['body'], 'Smoke <b>Test</b>'));
+check('frontpage shows never-trained workouts', str_contains($r['body'], 'Noch nie trainiert'));
 
 $r = request('POST', '/addExercise', ['workout_id' => $workoutId, 'exercise_name' => '  Bankdrücken  ']);
 $exerciseId = (int)db()->query("SELECT id FROM exercises WHERE workout_id=$workoutId")->fetchColumn();
@@ -349,6 +350,12 @@ check('logged sets stored in tables', count($stored) === 2 && (int)$stored[0]['e
 $r = request('GET', "/api/workout/$workoutId");
 $plan = json_decode($r['body'], true);
 check('api plan carries last performance', ($plan['last']['workload'] ?? null) == 652 && count($plan['last']['exercises']["id:$exerciseId"] ?? []) === 2, json_encode($plan['last'] ?? null));
+$kgRecord = $plan['records']['name:bankdrücken|kg'] ?? null;
+$bwRecord = $plan['records']['name:bankdrücken|bw'] ?? null;
+check('api plan carries exercise records (estimated 1RM for kg, reps for bodyweight)', $kgRecord !== null && $kgRecord['repetitions'] === 8 && (float)$kgRecord['load'] === 80.0 && abs($kgRecord['score'] - 101.33) < 0.01 && $bwRecord !== null && $bwRecord['repetitions'] === 12 && (float)$bwRecord['score'] === 12.0, json_encode($plan['records'] ?? null));
+
+$r = request('GET', '/');
+check('frontpage shows last training and count', str_contains($r['body'], 'Zuletzt heute · 1 Training<'), substr((string)strstr($r['body'], 'subtitle'), 0, 80));
 
 $r = request('POST', '/api/workout/log', json_encode(['workout_id' => $workoutId, 'duration' => 42]), ['Content-Type' => 'application/json']);
 check('api log without exercises 400', $r['status'] === 400, "got {$r['status']}");
@@ -370,13 +377,27 @@ check('logs page shows below-best percentage', str_contains($r['body'], '-100,0%
 check('logs page renders structured set labels', str_contains($r['body'], '>80 kg<') && str_contains($r['body'], '>Körpergewicht<'));
 check('logs page shows per-exercise history', str_contains($r['body'], 'Verlauf (3)') && str_contains($r['body'], '8 × 80 kg, 12 × KG'));
 
+// --- plan write-back -------------------------------------------------------
+$planSet = db()->query("SELECT id, repetitions, load FROM sets WHERE exercise_id=$exerciseId AND unit='kg' ORDER BY position, id LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+$writeBack = fn(array $sets, bool $update) => json_encode(['workout_id' => $workoutId, 'duration' => 30, 'update_plan' => $update, 'exercises' => [['exercise_id' => $exerciseId, 'name' => 'Bankdrücken', 'sets' => $sets]]]);
+$r = request('POST', '/api/workout/log', $writeBack([['set_id' => $planSet['id'], 'reps' => 11, 'unit' => 'kg', 'load' => '85', 'rest_time' => 90]], false), ['Content-Type' => 'application/json']);
+$unchanged = db()->query("SELECT repetitions, load FROM sets WHERE id={$planSet['id']}")->fetch(PDO::FETCH_ASSOC);
+check('log without update_plan leaves the plan alone', $r['status'] === 200 && str_contains($r['body'], '"plan_updated":0') && $unchanged == ['repetitions' => $planSet['repetitions'], 'load' => $planSet['load']], json_encode($unchanged));
+$r = request('POST', '/api/workout/log', $writeBack([
+    ['set_id' => $planSet['id'], 'reps' => 11, 'unit' => 'kg', 'load' => '85', 'rest_time' => 90],
+    ['set_id' => 999999, 'reps' => 5, 'unit' => 'kg', 'load' => '50', 'rest_time' => 90],
+    ['set_id' => $planSet['id'], 'reps' => 3, 'unit' => 'bw', 'load' => null, 'rest_time' => 90],
+], true), ['Content-Type' => 'application/json']);
+$changed = db()->query("SELECT repetitions, unit, load FROM sets WHERE id={$planSet['id']}")->fetch(PDO::FETCH_ASSOC);
+check('update_plan writes reps and load back into the matching set only', $r['status'] === 200 && str_contains($r['body'], '"plan_updated":1') && (int)$changed['repetitions'] === 11 && (float)$changed['load'] === 85.0 && $changed['unit'] === 'kg', "{$r['body']} " . json_encode($changed));
+
 // --- cascade delete --------------------------------------------------------
 $r = request('POST', '/deleteWorkout', ['workout_id' => $workoutId]);
 check('delete workout', $r['status'] === 303);
 check('exercises cascade-deleted', (int)db()->query("SELECT COUNT(*) FROM exercises WHERE workout_id=$workoutId")->fetchColumn() === 0);
 check('sets cascade-deleted', (int)db()->query("SELECT COUNT(*) FROM sets WHERE exercise_id=$exerciseId")->fetchColumn() === 0);
-check('logs survive workout deletion', (int)db()->query("SELECT COUNT(*) FROM workoutLog WHERE workout_id=$workoutId")->fetchColumn() === 3);
-check('logged sets survive workout deletion', (int)db()->query("SELECT COUNT(*) FROM logSets ls JOIN logExercises le ON le.id = ls.log_exercise_id JOIN workoutLog wl ON wl.id = le.log_id WHERE wl.workout_id=$workoutId")->fetchColumn() === 4);
+check('logs survive workout deletion', (int)db()->query("SELECT COUNT(*) FROM workoutLog WHERE workout_id=$workoutId")->fetchColumn() === 5);
+check('logged sets survive workout deletion', (int)db()->query("SELECT COUNT(*) FROM logSets ls JOIN logExercises le ON le.id = ls.log_exercise_id JOIN workoutLog wl ON wl.id = le.log_id WHERE wl.workout_id=$workoutId")->fetchColumn() === 8);
 
 $r = request('GET', '/logs');
 check('logs of deleted workout still listed', $r['status'] === 200 && str_contains($r['body'], '>gelöscht<'));

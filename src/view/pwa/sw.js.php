@@ -20,6 +20,16 @@ self.addEventListener('activate', (event) => {
     })());
 });
 
+// Rest-timer notification (shown by js/session.js while the page is in the background): tap brings the app back.
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil((async () => {
+        const windows = await self.clients.matchAll({type: 'window', includeUncontrolled: true});
+        const client = windows.find((w) => 'focus' in w);
+        return client ? client.focus() : self.clients.openWindow('/');
+    })());
+});
+
 const isPageRequest = (request) =>
     request.mode === 'navigate' || request.destination === 'document' || (request.headers.get('Accept') || '').includes('text/html');
 

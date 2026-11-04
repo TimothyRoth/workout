@@ -110,6 +110,45 @@ function local_datetime(?string $utc, string $format = 'd.m.Y H:i'): string
 }
 
 /**
+ * "heute", "gestern", "vor 3 Tagen", "vor 2 Wochen", "vor 4 Monaten", "vor 1 Jahr" for a UTC timestamp.
+ */
+function relative_day(?string $utc): string
+{
+    if ($utc === null || $utc === '') {
+        return '';
+    }
+    try {
+        $day = (new DateTimeImmutable($utc, new DateTimeZone('UTC')))
+            ->setTimezone(new DateTimeZone(date_default_timezone_get()))
+            ->setTime(0, 0);
+    } catch (Exception) {
+        return $utc;
+    }
+    $days = (int)$day->diff(new DateTimeImmutable('today'))->format('%r%a');
+
+    return match (true) {
+        $days <= 0 => 'heute',
+        $days === 1 => 'gestern',
+        $days < 7 => "vor $days Tagen",
+        $days < 30 => intdiv($days, 7) === 1 ? 'vor 1 Woche' : 'vor ' . intdiv($days, 7) . ' Wochen',
+        $days < 365 => intdiv($days, 30) === 1 ? 'vor 1 Monat' : 'vor ' . intdiv($days, 30) . ' Monaten',
+        default => intdiv($days, 365) === 1 ? 'vor 1 Jahr' : 'vor ' . intdiv($days, 365) . ' Jahren',
+    };
+}
+
+/**
+ * Subtitle of a workout row: "Zuletzt gestern · 12 Trainings" or "Noch nie trainiert".
+ */
+function workout_subtitle(array $workout): string
+{
+    $count = (int)($workout['session_count'] ?? 0);
+    if ($count === 0 || empty($workout['last_trained_at'])) {
+        return 'Noch nie trainiert';
+    }
+    return 'Zuletzt ' . relative_day($workout['last_trained_at']) . ' · ' . $count . ($count === 1 ? ' Training' : ' Trainings');
+}
+
+/**
  * <option> list for a unit select; each option carries the label of its load input.
  */
 function unit_options(\App\Unit $selected): string

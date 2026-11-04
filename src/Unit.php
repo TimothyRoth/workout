@@ -66,6 +66,20 @@ enum Unit: string
         return array_map(static fn(self $unit) => $unit->value, self::cases());
     }
 
+    /**
+     * How good a set was, comparable within one unit: the estimated one-rep
+     * max (Epley) for weights, the reps for bodyweight, the duration for
+     * timed sets (reps as tie-breaker). Mirrored in js/session.js.
+     */
+    public function recordScore(int $reps, ?float $load): float
+    {
+        return match ($this) {
+            self::Kg => $reps > 0 ? (float)$load * (1 + $reps / 30) : 0.0,
+            self::Bodyweight => (float)$reps,
+            self::Seconds, self::Minutes => (float)$load + $reps / 1000,
+        };
+    }
+
     /** Short form used in compact set lists: "8 × 80 kg", "12 × KG", "1 × 45 s". */
     public function short(float|int|string|null $load): string
     {

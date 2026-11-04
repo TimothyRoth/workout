@@ -17,9 +17,11 @@
     <div class="rest-bar" id="rest-bar" hidden>
         <div class="rest-bar-fill" id="rest-fill"></div>
         <div class="rest-bar-content">
-            <span class="rest-bar-label"><?= icon('timer', 'icon-sm') ?> Pause</span>
+            <span class="rest-bar-label"><?= icon('timer', 'icon-sm') ?></span>
             <b id="rest-remaining">0:00</b>
-            <button class="btn btn-ghost" type="button" id="rest-skip">Überspringen</button>
+            <button class="btn btn-ghost" type="button" id="rest-minus" aria-label="30 Sekunden weniger Pause">−30</button>
+            <button class="btn btn-ghost" type="button" id="rest-plus" aria-label="30 Sekunden mehr Pause">+30</button>
+            <button class="btn btn-ghost" type="button" id="rest-skip">Weiter</button>
         </div>
     </div>
 
@@ -35,6 +37,14 @@
             </div>
             <div class="badges" id="summary-badges"></div>
             <p class="hint" id="summary-open" hidden></p>
+            <label class="switch summary-plan" id="summary-plan" hidden>
+                <input type="checkbox" id="summary-update-plan">
+                <span class="switch-track"></span>
+                <span class="switch-text">
+                    <span id="summary-plan-text">Plan aktualisieren</span>
+                    <small class="hint">Die heutigen Wiederholungen und Gewichte werden als neuer Plan gespeichert.</small>
+                </span>
+            </label>
             <button class="btn btn-primary btn-block btn-lg" type="button" id="summary-save">Speichern</button>
         </div>
         <div class="sheet-footer">

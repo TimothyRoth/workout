@@ -6,6 +6,10 @@
  * pending ones to jump ahead. Progress (including a running rest timer)
  * is kept in localStorage so an interrupted session can be resumed, and
  * the done sets are posted to /api/workout/log at the end.
+ *
+ * Records: every exercise knows its best logged set per unit (from the
+ * plan API); a completed set that beats it is flagged on the spot. The
+ * summary can write today's reps and loads back into the plan.
  */
 
 import {keepScreenOn} from "app/wakelock";
@@ -16,6 +20,17 @@ const MAX_AGE_MS = 8 * 60 * 60 * 1000; // a cached session older than this is st
 const UNIT_SHORT = {kg: "kg", bw: "KG", s: "s", min: "min"};
 const LOAD_LABELS = {kg: "Gewicht (kg)", s: "Dauer (s)", min: "Dauer (min)"};
 const LOAD_STEPS = {kg: 2.5, s: 5, min: 1};
+const REST_ADJUST_SECONDS = 30;
+const NOTIFICATION_TAG = "rest-timer";
+
+// Mirrors Unit::recordScore(): estimated 1RM for weights, reps for bodyweight, duration for timed sets.
+const recordScore = (unit, reps, load) => {
+    const r = parseInt(reps, 10) || 0;
+    const l = parseFloat(load) || 0;
+    if (unit === "kg") return r > 0 ? l * (1 + r / 30) : 0;
+    if (unit === "bw") return r;
+    return l + r / 1000;
+};
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
@@ -32,6 +47,7 @@ export const initSession = () => {
     startButton.addEventListener("click", async () => {
         startButton.classList.add("is-busy");
         try {
+            requestNotificationPermission();
             await start(startButton.dataset.workoutId, startButton.dataset.workoutUpdated);
         } catch (error) {
             console.error(error);
@@ -78,7 +94,16 @@ const bind = () => {
     $("session-close").addEventListener("click", closeOverlay);
     $("session-finish").addEventListener("click", openSummary);
     $("rest-skip").addEventListener("click", endRest);
+    $("rest-minus").addEventListener("click", () => adjustRest(-REST_ADJUST_SECONDS));
+    $("rest-plus").addEventListener("click", () => adjustRest(REST_ADJUST_SECONDS));
     $("summary-save").addEventListener("click", submit);
+
+    // Back in the foreground: a rest that ended meanwhile is handled right away, its notification is cleared.
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState !== "visible") return;
+        closeRestNotification();
+        if (session?.rest && restTimer) startRestTicker();
+    });
     $("summary-discard").addEventListener("click", discard);
 
     $("session-list").addEventListener("click", event => {
@@ -112,7 +137,7 @@ const build = async (workoutId, workoutUpdated) => {
     if (!response.ok) {
         throw new Error("Das Workout konnte nicht geladen werden.");
     }
-    const {workout, last} = await response.json();
+    const {workout, last, records = {}} = await response.json();
 
     if (!workout.exercises || workout.exercises.length === 0) {
         throw new Error("Bitte füge dem Workout mindestens eine Übung hinzu, bevor du es startest.");
@@ -136,10 +161,17 @@ const build = async (workoutId, workoutUpdated) => {
         last: last ? {workload: Number(last.workload), createdAt: last.created_at} : null,
         exercises: workout.exercises.map(exercise => {
             const lastSets = lastSetsFor(exercise);
+            const nameKey = `name:${exercise.name.trim().toLowerCase()}`;
+            const units = [...new Set(exercise.sets.map(set => set.unit))];
             return {
                 id: exercise.id,
                 name: exercise.name,
+                // best logged set per unit, updated during the session so a second improvement also counts
+                records: Object.fromEntries(units.map(unit => [unit, records[`${nameKey}|${unit}`]
+                    ? {reps: records[`${nameKey}|${unit}`].repetitions, load: records[`${nameKey}|${unit}`].load, score: Number(records[`${nameKey}|${unit}`].score), fresh: false}
+                    : null])),
                 sets: exercise.sets.map((set, i) => ({
+                    setId: set.id,
                     plannedReps: set.repetitions,
                     plannedLoad: set.load,
                     unit: set.unit,
@@ -147,6 +179,7 @@ const build = async (workoutId, workoutUpdated) => {
                     reps: null,
                     load: null,
                     done: false,
+                    record: false,
                     last: lastSets[i] ? {reps: lastSets[i].repetitions, load: lastSets[i].load, unit: lastSets[i].unit} : null,
                 })),
             };
@@ -219,6 +252,7 @@ const completeCurrent = () => {
     set.reps = $("cur-reps")?.value.trim() ?? set.reps;
     if (set.unit !== "bw") set.load = $("cur-load")?.value.trim() ?? set.load;
     set.done = true;
+    checkRecord(session.exercises[session.current.e], set);
 
     const next = nextPending(session.current.e, session.current.s);
     session.current = next ? {e: next.e, s: next.s} : null;
@@ -231,6 +265,31 @@ const completeCurrent = () => {
     render();
 
     if (!next) openSummary();
+};
+
+const checkRecord = (exercise, set) => {
+    const score = recordScore(set.unit, set.reps, set.load);
+    const best = exercise.records?.[set.unit] ?? null;
+    const beaten = score > 0 && (!best || score > best.score);
+    set.record = beaten;
+    if (beaten) {
+        exercise.records = {...exercise.records, [set.unit]: {reps: set.reps, load: set.load, score, fresh: true}};
+        navigator.vibrate?.([80, 60, 80]);
+    }
+};
+
+const recordCount = () => allSets().filter(({set}) => set.done && set.record).length;
+
+const adjustRest = seconds => {
+    if (!session.rest) return;
+    session.rest.endsAt += seconds * 1000;
+    session.rest.total = Math.max(1000, session.rest.total + seconds * 1000);
+    if (session.rest.endsAt <= Date.now()) {
+        endRest();
+        return;
+    }
+    save();
+    startRestTicker();
 };
 
 const beginRest = seconds => {
@@ -264,6 +323,7 @@ const startRestTicker = () => {
         const remaining = session.rest.endsAt - Date.now();
         if (remaining <= 0) {
             navigator.vibrate?.([300, 150, 300]);
+            if (document.visibilityState !== "visible") showRestNotification();
             endRest();
             return;
         }
@@ -274,6 +334,36 @@ const startRestTicker = () => {
     // setInterval + wall clock keeps counting correctly after the screen was off.
     tick();
     restTimer = setInterval(tick, 250);
+};
+
+// --- notifications ------------------------------------------------------
+// The rest ticker keeps running (throttled) while the app is in the background; when it
+// ends there, a notification brings the user back. Android needs it to go through the
+// service worker, desktop browsers accept a plain Notification.
+
+const requestNotificationPermission = () => {
+    if (!("Notification" in window) || Notification.permission !== "default") return;
+    Notification.requestPermission().catch(() => {});
+};
+
+const showRestNotification = async () => {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    const options = {body: "Weiter geht’s mit dem nächsten Satz.", tag: NOTIFICATION_TAG, renotify: true, vibrate: [300, 150, 300], icon: "/img/icon-192.png", badge: "/img/icon-192.png"};
+    try {
+        const registration = await navigator.serviceWorker?.getRegistration();
+        if (registration) await registration.showNotification("Pause vorbei", options);
+        else new Notification("Pause vorbei", options);
+    } catch (error) {
+        console.warn("Notification failed.", error);
+    }
+};
+
+const closeRestNotification = async () => {
+    try {
+        const registration = await navigator.serviceWorker?.getRegistration();
+        (await registration?.getNotifications({tag: NOTIFICATION_TAG}))?.forEach(notification => notification.close());
+    } catch {
+    }
 };
 
 const stopTimers = () => {
@@ -296,11 +386,19 @@ const render = () => {
                 <h2>${esc(exercise.name)}</h2>
                 ${exercise.sets.some(set => set.last) ? '<span class="hint">letztes Mal</span>' : ""}
             </header>
+            ${renderRecordLine(exercise)}
             ${exercise.sets.map((set, s) => renderSet(set, e, s)).join("")}
         </section>
     `).join("");
 
     document.querySelector(".set-row.is-current")?.scrollIntoView({block: "center", behavior: "smooth"});
+};
+
+const renderRecordLine = exercise => {
+    const lines = Object.entries(exercise.records ?? {})
+        .filter(([, record]) => record)
+        .map(([unit, record]) => `${record.fresh ? "Neuer Bestwert" : "Bestwert"}: ${esc(record.reps)} × ${esc(shortLoad(unit, record.load))}`);
+    return lines.length ? `<p class="session-exercise-record">${lines.join(" · ")}</p>` : "";
 };
 
 const renderSet = (set, e, s) => {
@@ -312,7 +410,7 @@ const renderSet = (set, e, s) => {
     return `
         <div class="${classes}" data-e="${e}" data-s="${s}" role="button" tabindex="0">
             <span class="set-num">${set.done ? checkIcon : s + 1}</span>
-            <span class="set-plan">${shown}</span>
+            <span class="set-plan">${shown}${set.done && set.record ? ' <span class="badge badge-gold set-pr">Bestwert</span>' : ""}</span>
             <span class="set-last">${last}</span>
         </div>
         ${current ? renderCurrent(set) : ""}
@@ -387,7 +485,18 @@ const openSummary = () => {
     } else if (!session.last) {
         badges.push('<span class="badge badge-neutral">Erstes Mal</span>');
     }
+    const records = recordCount();
+    if (records > 0) {
+        badges.push(`<span class="badge badge-gold">${records === 1 ? "1 neuer Bestwert" : `${records} neue Bestwerte`}</span>`);
+    }
     $("summary-badges").innerHTML = badges.join("");
+
+    // Plan write-back: offered when done sets differ from the plan, pre-checked only
+    // when nothing was below plan (a weaker day should not downgrade the plan by default).
+    const changed = planChanges();
+    $("summary-plan").hidden = changed.length === 0;
+    $("summary-plan-text").textContent = changed.length === 1 ? "Plan aktualisieren (1 Satz weicht ab)" : `Plan aktualisieren (${changed.length} Sätze weichen ab)`;
+    $("summary-update-plan").checked = changed.length > 0 && changed.every(({set}) => !belowPlan(set));
 
     const open = total - done;
     $("summary-open").hidden = open === 0;
@@ -397,11 +506,27 @@ const openSummary = () => {
     $("session-summary").showModal();
 };
 
+const differsFromPlan = set => {
+    const reps = parseInt(set.reps, 10) || 0;
+    if (reps !== (parseInt(set.plannedReps, 10) || 0)) return true;
+    if (set.unit === "bw") return false;
+    return (parseFloat(set.load) || 0) !== (parseFloat(set.plannedLoad) || 0);
+};
+
+const belowPlan = set => {
+    const reps = parseInt(set.reps, 10) || 0;
+    if (reps < (parseInt(set.plannedReps, 10) || 0)) return true;
+    return set.unit !== "bw" && (parseFloat(set.load) || 0) < (parseFloat(set.plannedLoad) || 0);
+};
+
+const planChanges = () => allSets().filter(({set}) => set.done && set.setId && differsFromPlan(set));
+
 const loggedExercises = () => session.exercises
     .map(exercise => ({
         exercise_id: exercise.id,
         name: exercise.name,
         sets: exercise.sets.filter(set => set.done).map(set => ({
+            set_id: set.setId ?? null,
             reps: parseInt(set.reps, 10) || 0,
             unit: set.unit,
             load: set.unit === "bw" ? null : (set.load === "" || set.load === null ? null : set.load),
@@ -422,6 +547,7 @@ const submit = async () => {
                 workout_id: Number(session.id),
                 duration: durationMinutes(),
                 exercises: loggedExercises(),
+                update_plan: !$("summary-plan").hidden && $("summary-update-plan").checked,
             }),
         });
 

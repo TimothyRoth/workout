@@ -282,6 +282,7 @@ class Controller
                 'status' => 'success',
                 'workout' => $workout,
                 'last' => Database::getLastPerformance($workout['id']),
+                'records' => Database::getExerciseRecords(),
             ]);
         });
 
@@ -291,7 +292,14 @@ class Controller
             $exercises = $this->parseLoggedExercises($this->request->raw('exercises'));
 
             $id = Database::addLog($workout['id'], $duration, $exercises);
-            $this->utils->json(['status' => 'success', 'id' => $id]);
+
+            // "Plan aktualisieren" in the session summary: today's reps and loads become the new plan.
+            $planUpdated = 0;
+            if (filter_var($this->request->raw('update_plan') ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $planUpdated = Database::applyPerformanceToPlan($workout['id'], $exercises);
+            }
+
+            $this->utils->json(['status' => 'success', 'id' => $id, 'plan_updated' => $planUpdated]);
         });
     }
 
@@ -341,7 +349,8 @@ class Controller
                     }
                     $load = (float)$value;
                 }
-                $sets[] = ['repetitions' => $reps, 'unit' => $unit, 'load' => $load, 'rest_time' => $rest];
+                $setId = filter_var($set['set_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+                $sets[] = ['repetitions' => $reps, 'unit' => $unit, 'load' => $load, 'rest_time' => $rest, 'set_id' => $setId === false ? null : $setId];
             }
 
             if ($sets !== []) {

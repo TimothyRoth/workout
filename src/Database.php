@@ -435,7 +435,13 @@ class Database
 
     public static function getWorkouts(): array
     {
-        return self::pdo()->query("SELECT id, name FROM workouts ORDER BY id")->fetchAll();
+        return self::pdo()->query("
+            SELECT w.id, w.name,
+                   (SELECT MAX(created_at) FROM workoutLog wl WHERE wl.workout_id = w.id) AS last_trained_at,
+                   (SELECT COUNT(*) FROM workoutLog wl WHERE wl.workout_id = w.id) AS session_count
+            FROM workouts w
+            ORDER BY w.id
+        ")->fetchAll();
     }
 
     public static function getWorkout(int $id): ?array
@@ -875,6 +881,90 @@ class Database
             'duration' => (int)$log['duration'],
             'exercises' => $exercises,
         ];
+    }
+
+    /**
+     * Best logged set per exercise name and unit, keyed "name:<lower name>|<unit>"
+     * (exercises are matched by name across workouts, like the history).
+     */
+    public static function getExerciseRecords(): array
+    {
+        $rows = self::pdo()->query("
+            SELECT le.name, ls.unit, ls.repetitions, ls.load, wl.created_at
+            FROM logSets ls
+            JOIN logExercises le ON le.id = ls.log_exercise_id
+            JOIN workoutLog wl ON wl.id = le.log_id
+            ORDER BY wl.created_at, wl.id, le.position, ls.position
+        ")->fetchAll();
+
+        $records = [];
+        foreach ($rows as $row) {
+            $unit = Unit::tryFrom((string)$row['unit']);
+            if ($unit === null) {
+                continue;
+            }
+            $load = $row['load'] === null ? null : (float)$row['load'];
+            $score = $unit->recordScore((int)$row['repetitions'], $load);
+            if ($score <= 0) {
+                continue;
+            }
+            $key = 'name:' . mb_strtolower(trim((string)$row['name'])) . '|' . $unit->value;
+            if (!isset($records[$key]) || $score > $records[$key]['score']) {
+                $records[$key] = [
+                    'unit' => $unit->value,
+                    'repetitions' => (int)$row['repetitions'],
+                    'load' => $load,
+                    'score' => round($score, 2),
+                    'created_at' => $row['created_at'],
+                ];
+            }
+        }
+        return $records;
+    }
+
+    /**
+     * Write a session's reps and loads back into the plan. Sets are matched by
+     * the set_id the session carried; sets that no longer exist, belong to
+     * another workout or changed their unit are skipped. Returns the number
+     * of updated sets.
+     */
+    public static function applyPerformanceToPlan(int $workoutId, array $exercises): int
+    {
+        $db = self::pdo();
+        $update = $db->prepare("
+            UPDATE sets SET repetitions = :repetitions, load = :load, updated_at = CURRENT_TIMESTAMP
+            WHERE id = :id AND unit = :unit
+              AND exercise_id IN (SELECT id FROM exercises WHERE workout_id = :workout_id)
+        ");
+
+        $updated = 0;
+        $db->beginTransaction();
+        try {
+            foreach ($exercises as $exercise) {
+                foreach ($exercise['sets'] as $set) {
+                    if (empty($set['set_id'])) {
+                        continue;
+                    }
+                    $unit = $set['unit'] instanceof Unit ? $set['unit'] : (Unit::tryFrom((string)$set['unit']) ?? Unit::Kg);
+                    $update->execute([
+                        ':repetitions' => (int)$set['repetitions'],
+                        ':load' => $unit->needsLoad() ? $set['load'] : null,
+                        ':id' => (int)$set['set_id'],
+                        ':unit' => $unit->value,
+                        ':workout_id' => $workoutId,
+                    ]);
+                    $updated += $update->rowCount();
+                }
+            }
+            if ($updated > 0) {
+                self::touchWorkout($workoutId);
+            }
+            $db->commit();
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+        return $updated;
     }
 
     // ---------------------------------------------------------------

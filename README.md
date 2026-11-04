@@ -27,6 +27,20 @@ sudo -u www-data php bin/console app:user:list
 sudo -u www-data php bin/console app:user:delete <username>
 ```
 
+## Training session
+
+`public/js/session.js` runs the live workout: the whole plan on screen, the current set
+expanded, a rest timer with ±30 s and skip that also raises a notification through the
+service worker when the app is in the background, and progress cached in `localStorage`
+so an interrupted session resumes. The plan API (`GET /api/workout/<id>`) delivers the
+last performance per set and the best logged set per exercise name and unit
+(`Database::getExerciseRecords()`, scored by `Unit::recordScore()`: estimated 1RM for
+weights, reps for bodyweight, duration for timed sets); a set that beats its record is
+flagged on the spot. The summary offers "Plan aktualisieren", which posts `update_plan`
+with the log and writes today's reps and loads back into the plan sets
+(`Database::applyPerformanceToPlan()`), pre-checked only when no set was below plan.
+The front page shows per workout when it was last trained and how often.
+
 `App\Http\Auth` keeps the login in a PHP session (`workout_session`, HttpOnly, SameSite=Lax,
 Secure on HTTPS). "Angemeldet bleiben" adds a `workout_remember` cookie for 30 days, backed
 by the `auth_tokens` table (selector + hashed validator, rotated on every use, revoked on
