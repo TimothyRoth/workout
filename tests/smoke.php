@@ -293,17 +293,11 @@ check('api unknown workout 404 json', $r['status'] === 404 && str_contains($r['b
 // --- reorder & duplicate ------------------------------------------------------
 $setIds = db()->query("SELECT id FROM sets WHERE exercise_id=$exerciseId ORDER BY position, id")->fetchAll(PDO::FETCH_COLUMN);
 $r = request('POST', '/moveSet', ['set_id' => $setIds[1], 'direction' => 'up']);
-$after = db()->query("SELECT id FROM sets WHERE exercise_id=$exerciseId ORDER BY position, id")->fetchAll(PDO::FETCH_COLUMN);
-check('move set up swaps order', $r['status'] === 303 && $after === [$setIds[1], $setIds[0]], json_encode($after));
-$r = request('POST', '/moveSet', ['set_id' => $setIds[1], 'direction' => 'up']);
-$after = db()->query("SELECT id FROM sets WHERE exercise_id=$exerciseId ORDER BY position, id")->fetchAll(PDO::FETCH_COLUMN);
-check('move first set up is a no-op', $after === [$setIds[1], $setIds[0]]);
-$r = request('POST', '/moveSet', ['set_id' => $setIds[1], 'direction' => 'sideways']);
-check('invalid direction rejected', $r['status'] === 400, "got {$r['status']}");
+check('old move route is gone', $r['status'] === 404, "got {$r['status']}");
 
-$r = request('POST', '/duplicateSet', ['set_id' => $setIds[1]]);
+$r = request('POST', '/duplicateSet', ['set_id' => $setIds[0]]);
 $after = db()->query("SELECT id, repetitions, unit, load FROM sets WHERE exercise_id=$exerciseId ORDER BY position, id")->fetchAll(PDO::FETCH_ASSOC);
-check('duplicate set inserts a copy right after the original', $r['status'] === 303 && count($after) === 3 && (int)$after[0]['id'] === (int)$setIds[1] && (int)$after[2]['id'] === (int)$setIds[0] && $after[1]['unit'] === $after[0]['unit'] && (float)$after[1]['load'] === (float)$after[0]['load'], json_encode($after));
+check('duplicate set inserts a copy right after the original', $r['status'] === 303 && count($after) === 3 && (int)$after[0]['id'] === (int)$setIds[0] && (int)$after[2]['id'] === (int)$setIds[1] && $after[1]['unit'] === $after[0]['unit'] && (float)$after[1]['load'] === (float)$after[0]['load'], json_encode($after));
 request('POST', '/deleteSet', ['set_id' => $after[1]['id']]);
 
 // --- drag-and-drop order ---------------------------------------------------
@@ -330,10 +324,10 @@ $r = $reorder(['type' => 'exercises', 'parent_id' => $workoutId, 'ids' => [(int)
 $after = db()->query("SELECT id FROM exercises WHERE workout_id=$workoutId ORDER BY position, id")->fetchAll(PDO::FETCH_COLUMN);
 check('reorder exercises persists the new order', $r['status'] === 200 && $after === [$exerciseIds[1], $exerciseIds[0]], "got {$r['status']} " . json_encode($after));
 $reorder(['type' => 'exercises', 'parent_id' => $workoutId, 'ids' => [(int)$exerciseIds[0], (int)$exerciseIds[1]]]);
-$r = request('POST', '/moveExercise', ['exercise_id' => $exerciseIds[1], 'direction' => 'up']);
+$reorder(['type' => 'exercises', 'parent_id' => $workoutId, 'ids' => [(int)$exerciseIds[1], (int)$exerciseIds[0]]]);
 $plan = json_decode(request('GET', "/api/workout/$workoutId")['body'], true);
-check('move exercise up reorders the plan', $r['status'] === 303 && array_column($plan['workout']['exercises'], 'id') === [(int)$exerciseIds[1], (int)$exerciseIds[0]], json_encode(array_column($plan['workout']['exercises'], 'id')));
-request('POST', '/moveExercise', ['exercise_id' => $exerciseIds[1], 'direction' => 'down']);
+check('reordered exercises show up in the plan', array_column($plan['workout']['exercises'], 'id') === [(int)$exerciseIds[1], (int)$exerciseIds[0]], json_encode(array_column($plan['workout']['exercises'], 'id')));
+$reorder(['type' => 'exercises', 'parent_id' => $workoutId, 'ids' => [(int)$exerciseIds[0], (int)$exerciseIds[1]]]);
 request('POST', '/deleteExercise', ['exercise_id' => $exerciseIds[1]]);
 
 $r = request('POST', '/duplicateWorkout', ['workout_id' => $workoutId]);

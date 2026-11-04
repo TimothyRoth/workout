@@ -593,18 +593,6 @@ class Database
         return $stmt->rowCount();
     }
 
-    /**
-     * Move an exercise one step up (-1) or down (+1) within its workout.
-     */
-    public static function moveExercise(int $id, int $direction): void
-    {
-        $exercise = self::getExercise($id);
-        if ($exercise === null) {
-            return;
-        }
-        self::moveWithinSiblings('exercises', 'workout_id', (int)$exercise['workout_id'], $id, $direction);
-        self::touchWorkout((int)$exercise['workout_id']);
-    }
 
     // ---------------------------------------------------------------
     // Sets
@@ -711,18 +699,6 @@ class Database
         }
     }
 
-    /**
-     * Move a set one step up (-1) or down (+1) within its exercise.
-     */
-    public static function moveSet(int $id, int $direction): void
-    {
-        $set = self::getSet($id);
-        if ($set === null) {
-            return;
-        }
-        self::moveWithinSiblings('sets', 'exercise_id', (int)$set['exercise_id'], $id, $direction);
-        self::touchWorkoutOfExercise((int)$set['exercise_id']);
-    }
 
     // ---------------------------------------------------------------
     // Logs
@@ -973,27 +949,6 @@ class Database
         }
     }
 
-    private static function moveWithinSiblings(string $table, string $parentColumn, int $parentId, int $id, int $direction): void
-    {
-        $db = self::pdo();
-        $db->beginTransaction();
-        try {
-            $positions = self::renumber($table, $parentColumn, $parentId);
-            $ids = array_keys($positions);
-            $index = array_search($id, $ids, true);
-            $target = $index === false ? false : $index + ($direction < 0 ? -1 : 1);
-
-            if ($index !== false && $target >= 0 && $target < count($ids)) {
-                $update = $db->prepare("UPDATE $table SET position = :position WHERE id = :id");
-                $update->execute([':position' => $target + 1, ':id' => $ids[$index]]);
-                $update->execute([':position' => $index + 1, ':id' => $ids[$target]]);
-            }
-            $db->commit();
-        } catch (\Throwable $e) {
-            $db->rollBack();
-            throw $e;
-        }
-    }
 
     private static function touchWorkout(int $workoutId): void
     {

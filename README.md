@@ -72,8 +72,7 @@ On the workout page every exercise is a collapsible `<details>` card with a one-
 summary of its sets (`exercise_summary()` in the helpers); `public/js/exercises.js` keeps
 the open state per workout in `localStorage`. Exercises and sets are reordered by dragging
 their grip handle (`public/js/reorder.js`, Pointer Events, no library), which posts the
-new id order to `POST /api/reorder`; the up/down buttons in the edit sheets remain as the
-no-JS fallback.
+new id order to `POST /api/reorder`.
 
 ## Installable app (PWA)
 

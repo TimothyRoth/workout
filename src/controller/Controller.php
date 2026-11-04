@@ -190,12 +190,6 @@ class Controller
             Database::deleteExercise($exercise['id']);
             $this->utils->redirect('/workout', ['workout_id' => $exercise['workout_id']]);
         });
-
-        $this->router->map('POST', '/moveExercise', function () {
-            $exercise = $this->requireExercise($this->request->int('exercise_id'));
-            Database::moveExercise($exercise['id'], $this->direction());
-            $this->redirectToExercise($exercise['workout_id'], $exercise['id']);
-        });
     }
 
     // ---------------------------------------------------------------
@@ -230,14 +224,6 @@ class Controller
             $this->redirectToExercise($exercise['workout_id'], $exercise['id']);
         });
 
-        $this->router->map('POST', '/moveSet', function () {
-            $set = $this->requireSet($this->request->int('set_id'));
-            $exercise = $this->requireExercise($set['exercise_id']);
-
-            Database::moveSet($set['id'], $this->direction());
-            $this->redirectToExercise($exercise['workout_id'], $exercise['id']);
-        });
-
         $this->router->map('POST', '/duplicateSet', function () {
             $set = $this->requireSet($this->request->int('set_id'));
             $exercise = $this->requireExercise($set['exercise_id']);
@@ -245,16 +231,6 @@ class Controller
             Database::duplicateSet($set['id']);
             $this->redirectToExercise($exercise['workout_id'], $exercise['id']);
         });
-    }
-
-    /** -1 for "up", +1 for "down". */
-    private function direction(): int
-    {
-        return match ($this->request->string('direction', 10)) {
-            'up' => -1,
-            'down' => 1,
-            default => throw HttpException::badRequest('Ungültige Richtung.'),
-        };
     }
 
     /**
