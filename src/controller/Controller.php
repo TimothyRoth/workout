@@ -4,6 +4,7 @@ namespace App\controller;
 
 use AltoRouter;
 use App\Database;
+use App\Http\Auth;
 use App\Http\HttpException;
 use App\Http\Request;
 use App\Http\Security;
@@ -13,6 +14,9 @@ use App\Utils;
 class Controller
 {
     private const MAX_SETS_PER_ADD = 10;
+
+    /** Reachable without login: the login itself and the service worker. */
+    private const PUBLIC_PATHS = ['/login', '/sw.js'];
 
     public function __construct(
         private Utils      $utils = new Utils(),
@@ -25,7 +29,9 @@ class Controller
     {
         Security::sendDefaultHeaders();
         Security::assertSameOrigin($this->request);
+        $this->requireLogin();
 
+        $this->mapAuth();
         $this->mapPages();
         $this->mapWorkoutActions();
         $this->mapExerciseActions();
@@ -39,6 +45,62 @@ class Controller
         }
 
         call_user_func_array($match['target'], $match['params']);
+    }
+
+    // ---------------------------------------------------------------
+    // Login
+    // ---------------------------------------------------------------
+
+    /**
+     * Everything except the public paths needs a user: pages bounce to
+     * /login (and come back afterwards), the JSON API answers 401.
+     */
+    private function requireLogin(): void
+    {
+        $uri = $_SERVER['REQUEST_URI'] ?? '/';
+        $path = (string)parse_url($uri, PHP_URL_PATH);
+
+        if (in_array($path, self::PUBLIC_PATHS, true) || Auth::check()) {
+            return;
+        }
+
+        if (str_starts_with($path, '/api/')) {
+            throw HttpException::unauthorized();
+        }
+
+        if ($this->request->method() === 'GET') {
+            Auth::rememberTarget($uri);
+        }
+        $this->utils->redirect('/login');
+    }
+
+    private function mapAuth(): void
+    {
+        $this->router->map('GET', '/login', function () {
+            if (Auth::check()) {
+                $this->utils->redirect('/');
+            }
+            $flash = Auth::pullFlash();
+            $this->utils->renderView('login', ['title' => 'Anmelden', 'error' => $flash['error'], 'username' => $flash['username']]);
+        });
+
+        $this->router->map('POST', '/login', function () {
+            $username = $this->request->string('username', 180, false);
+            $password = (string)($this->request->raw('password') ?? '');
+            $remember = $this->request->has('remember');
+
+            if (!Auth::attempt($username, $password, $remember)) {
+                Auth::flash('Fehlerhafte Zugangsdaten.', $username);
+                $this->utils->redirect('/login');
+            }
+
+            $this->utils->redirect(Auth::pullTarget());
+        });
+
+        $this->router->map('POST', '/logout', function () {
+            Auth::logout();
+            $this->utils->redirect('/login');
+        });
     }
 
     // ---------------------------------------------------------------

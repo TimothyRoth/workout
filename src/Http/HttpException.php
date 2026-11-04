@@ -14,6 +14,11 @@ class HttpException extends RuntimeException
         return new self($message, 400);
     }
 
+    public static function unauthorized(string $message = 'Nicht angemeldet.'): self
+    {
+        return new self($message, 401);
+    }
+
     public static function forbidden(string $message = 'Anfrage abgelehnt.'): self
     {
         return new self($message, 403);

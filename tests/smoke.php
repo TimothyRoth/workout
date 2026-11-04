@@ -60,6 +60,7 @@ register_shutdown_function(function () use ($pid, $tmpDir) {
 usleep(400_000);
 
 $base = "http://127.0.0.1:$port";
+$cookieJar = $tmpDir . '/cookies.txt';
 $failures = 0;
 $passes = 0;
 
@@ -72,6 +73,8 @@ function request(string $method, string $path, array|string|null $body = null, a
         CURLOPT_HEADER => true,
         CURLOPT_CUSTOMREQUEST => $method,
         CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_COOKIEFILE => $GLOBALS['cookieJar'],
+        CURLOPT_COOKIEJAR => $GLOBALS['cookieJar'],
     ];
     if ($body !== null) {
         $opts[CURLOPT_POSTFIELDS] = is_array($body) ? http_build_query($body) : $body;
@@ -116,6 +119,42 @@ function db(): PDO
 }
 
 echo "Smoke test against $base\n";
+
+// --- login ------------------------------------------------------------------
+$console = fn(string $args) => trim((string)shell_exec(sprintf('WORKOUT_DB=%s php %s %s 2>&1', escapeshellarg($dbPath), escapeshellarg($root . '/bin/console'), $args)));
+check('console creates a user', str_contains($console('app:user:create smoke "geheim123"'), 'created'));
+check('console rejects a duplicate user', str_contains($console('app:user:create smoke "geheim123"'), 'already exists'));
+check('console rejects a short password', str_contains($console('app:user:create kurz "abc"'), 'at least 8'));
+check('console lists the user', preg_match('/^\\d+\\s+smoke\\s/m', $console('app:user:list')) === 1);
+
+$r = request('GET', '/api/workout/1');
+check('anonymous api gets 401 json', $r['status'] === 401 && str_contains($r['body'], '"status":"error"'), "got {$r['status']}");
+$r = request('GET', '/sw.js');
+check('service worker is public', $r['status'] === 200, "got {$r['status']}");
+$r = request('GET', '/login');
+check('login page 200', $r['status'] === 200 && str_contains($r['body'], 'name="password"'));
+check('login page has no install card', !str_contains($r['body'], 'install-card'));
+
+$r = request('POST', '/login', ['username' => 'smoke', 'password' => 'falsch']);
+check('wrong password redirects back', $r['status'] === 303 && $r['location'] === '/login');
+$r = request('GET', '/login');
+check('wrong password shows german error', str_contains($r['body'], 'Fehlerhafte Zugangsdaten.') && str_contains($r['body'], 'value="smoke"'));
+$r = request('GET', '/login');
+check('error is shown once', !str_contains($r['body'], 'Fehlerhafte Zugangsdaten.'));
+$r = request('GET', '/workout?workout_id=1');
+check('still anonymous after failed login, page bounces to login', $r['status'] === 303 && $r['location'] === '/login', "got {$r['status']} {$r['location']}");
+
+$r = request('POST', '/login', ['username' => 'SMOKE', 'password' => 'geheim123', 'remember' => '1']);
+check('login redirects to the remembered page', $r['status'] === 303 && $r['location'] === '/workout?workout_id=1', "loc {$r['location']}");
+check('login sets a remember cookie', preg_match('/^Set-Cookie: workout_remember=[0-9a-f]{88};.*HttpOnly/mi', $r['headers']) === 1, $r['headers']);
+$r = request('GET', '/login');
+check('login page redirects when logged in', $r['status'] === 303 && $r['location'] === '/');
+
+// drop the session cookie, keep the remember cookie: the next request must log in again from it
+file_put_contents($cookieJar, implode("\n", array_filter(file($cookieJar, FILE_IGNORE_NEW_LINES), fn($l) => !str_contains($l, 'workout_session'))) . "\n");
+$r = request('GET', '/');
+check('remember cookie restores the login', $r['status'] === 200, "got {$r['status']}");
+check('remember token is rotated', preg_match('/^Set-Cookie: workout_remember=/mi', $r['headers']) === 1);
 
 // --- pages render --------------------------------------------------------
 $r = request('GET', '/');
@@ -325,8 +364,16 @@ check('logged sets survive workout deletion', (int)db()->query("SELECT COUNT(*) 
 $r = request('GET', '/logs');
 check('logs of deleted workout still listed', $r['status'] === 200 && str_contains($r['body'], '>gelöscht<'));
 
+// --- logout ------------------------------------------------------------------
+$r = request('POST', '/logout');
+check('logout redirects to login', $r['status'] === 303 && $r['location'] === '/login');
+$r = request('GET', '/');
+check('logged out afterwards', $r['status'] === 303 && $r['location'] === '/login');
+check('logout revokes the remember token', (int)db()->query('SELECT COUNT(*) FROM auth_tokens')->fetchColumn() === 0);
+check('console deletes the user', str_contains($console('app:user:delete smoke'), 'deleted'));
+
 // --- schema state ----------------------------------------------------------
-check('schema version set', (int)db()->query('PRAGMA user_version')->fetchColumn() === 3);
+check('schema version set', (int)db()->query('PRAGMA user_version')->fetchColumn() === 4);
 check('sets table has no legacy column', !in_array('measure_unit', array_column(db()->query('PRAGMA table_info(sets)')->fetchAll(PDO::FETCH_ASSOC), 'name'), true));
 check('no orphan exercises', (int)db()->query('SELECT COUNT(*) FROM exercises WHERE workout_id NOT IN (SELECT id FROM workouts)')->fetchColumn() === 0);
 check('no orphan sets', (int)db()->query('SELECT COUNT(*) FROM sets WHERE exercise_id NOT IN (SELECT id FROM exercises)')->fetchColumn() === 0);

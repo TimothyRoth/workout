@@ -14,6 +14,25 @@ environment variable). `public/index.php` is passed as the router script because
 server would otherwise answer `/sw.js` (a route, not a file) with its own 404. Schema migrations run automatically on the first request;
 the current schema version is stored in SQLite's `PRAGMA user_version`.
 
+## Login
+
+Every page and the API need a logged-in user; `/login` and `/sw.js` are public. Users
+live in the `users` table and are managed with `bin/console`. Run it as the web user,
+so the SQLite files keep their owner (see the WAL note under Deploy):
+
+```bash
+sudo -u www-data php bin/console app:user:create <username> <password>   # at least 8 characters
+sudo -u www-data php bin/console app:user:password <username> <password>
+sudo -u www-data php bin/console app:user:list
+sudo -u www-data php bin/console app:user:delete <username>
+```
+
+`App\Http\Auth` keeps the login in a PHP session (`workout_session`, HttpOnly, SameSite=Lax,
+Secure on HTTPS). "Angemeldet bleiben" adds a `workout_remember` cookie for 30 days, backed
+by the `auth_tokens` table (selector + hashed validator, rotated on every use, revoked on
+logout and password change). State-changing requests are still protected by the
+same-origin check in `App\Http\Security`.
+
 ## Test
 
 ```bash
@@ -22,7 +41,7 @@ php tests/smoke.php path/to/copy.db       # against a COPY of real data (it is m
 ```
 
 The smoke test boots the built-in server on a random port and checks routing,
-validation, origin checks, escaping, cascade deletes, the JSON API and the log page.
+login, validation, origin checks, escaping, cascade deletes, the JSON API and the log page.
 
 ## Data model
 
@@ -66,3 +85,7 @@ the short hash of the checked-out commit (read from `.git/HEAD` at runtime, see
 `src/Version.php`), so every deploy automatically invalidates CSS and JS.
 
 Back up `workout.db` before deploying a release that bumps the schema version.
+
+Never open `workout.db` from the CLI as your own user: SQLite creates `-wal`/`-shm` files
+owned by you that PHP-FPM cannot write, and every page returns 500 until they are removed.
+Use `sudo -u www-data` or work on a copy with `WORKOUT_DB`.

@@ -1039,6 +1039,151 @@ select.input {
 }
 
 /* --------------------------------------------------------------------------
+   Login
+   -------------------------------------------------------------------------- */
+
+.login-card {
+    margin-top: clamp(24px, 12vh, 96px);
+    padding: 28px 20px 24px;
+}
+
+.login-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.login-brand img {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+}
+
+.login-brand h1 {
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.login-brand p {
+    color: var(--muted);
+    font-size: 15px;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.alert .icon {
+    flex: none;
+    margin-top: 2px;
+}
+
+.input-group {
+    position: relative;
+}
+
+.input-group > .icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+}
+
+.input-group .input {
+    padding-left: 44px;
+}
+
+.input-group.has-action .input {
+    padding-right: 52px;
+}
+
+.input-group-action {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+}
+
+.input-group-action .icon-hide,
+.input-group-action[aria-pressed="true"] .icon-show {
+    display: none;
+}
+
+.input-group-action[aria-pressed="true"] .icon-hide {
+    display: block;
+}
+
+.switch {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: var(--tap);
+    font-size: 15px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.switch input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.switch-track {
+    flex: none;
+    position: relative;
+    width: 44px;
+    height: 26px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-3);
+    transition: background .15s;
+}
+
+.switch-track::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--text);
+    transition: transform .15s;
+}
+
+.switch input:checked + .switch-track {
+    background: var(--accent);
+}
+
+.switch input:checked + .switch-track::after {
+    transform: translateX(18px);
+}
+
+.switch input:focus-visible + .switch-track {
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* --------------------------------------------------------------------------
    Installable app: install card (front page) and offline banner
    -------------------------------------------------------------------------- */
 

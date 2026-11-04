@@ -7,7 +7,7 @@ use RuntimeException;
 
 class Database
 {
-    private const SCHEMA_VERSION = 3;
+    private const SCHEMA_VERSION = 4;
 
     private static ?PDO $connection = null;
 
@@ -61,6 +61,9 @@ class Database
             }
             if ($version < 3) {
                 self::migrateToV3();
+            }
+            if ($version < 4) {
+                self::migrateToV4();
             }
             $db->exec('PRAGMA user_version = ' . self::SCHEMA_VERSION);
             $db->commit();
@@ -325,6 +328,95 @@ class Database
                 self::insertLogExercise((int)$log['id'], $position + 1, $exerciseId === false ? null : (int)$exerciseId, $name === '' ? 'Übung' : $name, $sets);
             }
         }
+    }
+
+    /**
+     * v4: login. Users are created with bin/console, remember-me tokens
+     * back the "Angemeldet bleiben" cookie (selector + hashed validator).
+     */
+    private static function migrateToV4(): void
+    {
+        $db = self::$connection;
+
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                password_hash TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS auth_tokens (
+                selector TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                validator_hash TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        ");
+    }
+
+    // ---------------------------------------------------------------
+    // Users & remember-me tokens
+    // ---------------------------------------------------------------
+
+    public static function findUserByUsername(string $username): ?array
+    {
+        $stmt = self::pdo()->prepare('SELECT id, username, password_hash FROM users WHERE username = ?');
+        $stmt->execute([$username]);
+        return $stmt->fetch() ?: null;
+    }
+
+    public static function findUser(int $id): ?array
+    {
+        $stmt = self::pdo()->prepare('SELECT id, username FROM users WHERE id = ?');
+        $stmt->execute([$id]);
+        return $stmt->fetch() ?: null;
+    }
+
+    public static function getUsers(): array
+    {
+        return self::pdo()->query('SELECT id, username, created_at FROM users ORDER BY username')->fetchAll();
+    }
+
+    public static function createUser(string $username, string $passwordHash): int
+    {
+        $stmt = self::pdo()->prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)');
+        $stmt->execute([$username, $passwordHash]);
+        return (int)self::pdo()->lastInsertId();
+    }
+
+    public static function updateUserPassword(int $id, string $passwordHash): void
+    {
+        self::pdo()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')->execute([$passwordHash, $id]);
+        self::pdo()->prepare('DELETE FROM auth_tokens WHERE user_id = ?')->execute([$id]);
+    }
+
+    public static function deleteUser(int $id): void
+    {
+        self::pdo()->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
+    }
+
+    public static function createAuthToken(string $selector, int $userId, string $validatorHash, string $expiresAt): void
+    {
+        self::pdo()->prepare('INSERT INTO auth_tokens (selector, user_id, validator_hash, expires_at) VALUES (?, ?, ?, ?)')
+            ->execute([$selector, $userId, $validatorHash, $expiresAt]);
+    }
+
+    public static function findAuthToken(string $selector): ?array
+    {
+        self::pdo()->exec("DELETE FROM auth_tokens WHERE expires_at < strftime('%Y-%m-%d %H:%M:%S', 'now')");
+        $stmt = self::pdo()->prepare('SELECT selector, user_id, validator_hash, expires_at FROM auth_tokens WHERE selector = ?');
+        $stmt->execute([$selector]);
+        return $stmt->fetch() ?: null;
+    }
+
+    public static function deleteAuthToken(string $selector): void
+    {
+        self::pdo()->prepare('DELETE FROM auth_tokens WHERE selector = ?')->execute([$selector]);
     }
 
     private static function columnExists(string $table, string $column): bool

@@ -26,3 +26,20 @@ export const initUnitSelects = () => {
         if (event.target.matches("[data-unit-select]")) applyUnit(event.target);
     });
 };
+
+/**
+ * "Passwort anzeigen" button next to a password field:
+ *   <button data-password-toggle="<input id>" aria-pressed="false">
+ */
+export const initPasswordToggles = () => {
+    document.querySelectorAll("[data-password-toggle]").forEach(button => {
+        const input = document.getElementById(button.dataset.passwordToggle);
+        if (!input) return;
+        button.addEventListener("click", () => {
+            const show = input.type === "password";
+            input.type = show ? "text" : "password";
+            button.setAttribute("aria-pressed", String(show));
+            button.setAttribute("aria-label", show ? "Passwort verbergen" : "Passwort anzeigen");
+        });
+    });
+};

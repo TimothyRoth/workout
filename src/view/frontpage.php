@@ -1,6 +1,9 @@
 <header class="topbar">
     <h1>Workouts</h1>
     <a class="icon-btn" href="/logs" aria-label="Logs" title="Logs"><?= icon('history') ?></a>
+    <form method="POST" action="/logout" data-confirm="Wirklich abmelden?">
+        <button class="icon-btn" type="submit" aria-label="Abmelden" title="Abmelden"><?= icon('logout') ?></button>
+    </form>
 </header>
 
 <div class="stack-lg">
