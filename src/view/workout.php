@@ -14,9 +14,12 @@
 
     <form class="card inline-form" method="POST" action="/addExercise">
         <input type="hidden" name="workout_id" value="<?= e($workout['id']) ?>">
-        <input class="input" name="exercise_name" type="text" placeholder="Neue Übung" maxlength="100" autocomplete="off" required>
+        <input class="input" name="exercise_name" type="text" placeholder="Neue Übung" maxlength="100" autocomplete="off" list="exercise-names" required>
         <button class="icon-btn icon-btn-accent" type="submit" aria-label="Übung hinzufügen"><?= icon('plus') ?></button>
     </form>
+    <datalist id="exercise-names">
+        <?php foreach ($params['exerciseNames'] as $exerciseName) { ?><option value="<?= e($exerciseName) ?>"></option><?php } ?>
+    </datalist>
 
     <?php if (count($workout['exercises']) === 0) { ?>
         <p class="empty">Noch keine Übungen. Füge oben die erste hinzu.</p>

@@ -7,7 +7,7 @@ use RuntimeException;
 
 class Database
 {
-    private const SCHEMA_VERSION = 4;
+    private const SCHEMA_VERSION = 5;
 
     private static ?PDO $connection = null;
 
@@ -64,6 +64,9 @@ class Database
             }
             if ($version < 4) {
                 self::migrateToV4();
+            }
+            if ($version < 5) {
+                self::migrateToV5();
             }
             $db->exec('PRAGMA user_version = ' . self::SCHEMA_VERSION);
             $db->commit();
@@ -359,6 +362,18 @@ class Database
         ");
     }
 
+    /** v5: free-text notes on exercises (plan) and on logged sessions. */
+    private static function migrateToV5(): void
+    {
+        $db = self::$connection;
+        if (!self::columnExists('exercises', 'notes')) {
+            $db->exec("ALTER TABLE exercises ADD COLUMN notes TEXT NOT NULL DEFAULT ''");
+        }
+        if (!self::columnExists('workoutLog', 'notes')) {
+            $db->exec("ALTER TABLE workoutLog ADD COLUMN notes TEXT NOT NULL DEFAULT ''");
+        }
+    }
+
     // ---------------------------------------------------------------
     // Users & remember-me tokens
     // ---------------------------------------------------------------
@@ -558,35 +573,58 @@ class Database
 
     public static function getExercises(int $workoutId): array
     {
-        $stmt = self::pdo()->prepare("SELECT id, workout_id, name FROM exercises WHERE workout_id = :workout_id ORDER BY position, id");
+        $stmt = self::pdo()->prepare("SELECT id, workout_id, name, notes FROM exercises WHERE workout_id = :workout_id ORDER BY position, id");
         $stmt->execute([':workout_id' => $workoutId]);
         return $stmt->fetchAll();
     }
 
+    /**
+     * Every exercise name ever used (plans and logs), one spelling per name,
+     * for the name suggestions when adding or renaming an exercise.
+     */
+    public static function getExerciseNames(): array
+    {
+        $names = [];
+        $rows = self::pdo()->query("
+            SELECT name FROM exercises
+            UNION
+            SELECT name FROM logExercises
+        ")->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($rows as $name) {
+            $name = trim((string)$name);
+            $key = mb_strtolower($name);
+            if ($name !== '' && !isset($names[$key])) {
+                $names[$key] = $name;
+            }
+        }
+        ksort($names, SORT_STRING);
+        return array_values($names);
+    }
+
     public static function getExercise(int $id): ?array
     {
-        $stmt = self::pdo()->prepare("SELECT id, workout_id, name FROM exercises WHERE id = :id");
+        $stmt = self::pdo()->prepare("SELECT id, workout_id, name, notes FROM exercises WHERE id = :id");
         $stmt->execute([':id' => $id]);
         $row = $stmt->fetch();
         return $row === false ? null : $row;
     }
 
-    public static function addExercise(string $name, int $workoutId): int
+    public static function addExercise(string $name, int $workoutId, string $notes = ''): int
     {
         $db = self::pdo();
         $stmt = $db->prepare(
-            "INSERT INTO exercises(name, workout_id, position)
-             VALUES(:name, :workout_id, (SELECT COALESCE(MAX(position), 0) + 1 FROM exercises WHERE workout_id = :workout_id))"
+            "INSERT INTO exercises(name, workout_id, notes, position)
+             VALUES(:name, :workout_id, :notes, (SELECT COALESCE(MAX(position), 0) + 1 FROM exercises WHERE workout_id = :workout_id))"
         );
-        $stmt->execute([':name' => $name, ':workout_id' => $workoutId]);
+        $stmt->execute([':name' => $name, ':workout_id' => $workoutId, ':notes' => $notes]);
         self::touchWorkout($workoutId);
         return (int)$db->lastInsertId();
     }
 
-    public static function editExercise(int $exerciseId, string $name): int
+    public static function editExercise(int $exerciseId, string $name, string $notes = ''): int
     {
-        $stmt = self::pdo()->prepare("UPDATE exercises SET name = :name, updated_at = CURRENT_TIMESTAMP WHERE id = :id");
-        $stmt->execute([':name' => $name, ':id' => $exerciseId]);
+        $stmt = self::pdo()->prepare("UPDATE exercises SET name = :name, notes = :notes, updated_at = CURRENT_TIMESTAMP WHERE id = :id");
+        $stmt->execute([':name' => $name, ':notes' => $notes, ':id' => $exerciseId]);
         self::touchWorkoutOfExercise($exerciseId);
         return $stmt->rowCount();
     }
@@ -716,7 +754,7 @@ class Database
      * ['repetitions' => int, 'unit' => Unit, 'load' => ?float, 'rest_time' => int]].
      * The workload is computed here from the sets, never taken from the client.
      */
-    public static function addLog(int $workoutId, int $duration, array $exercises): int
+    public static function addLog(int $workoutId, int $duration, array $exercises, string $notes = ''): int
     {
         $workout = self::getWorkout($workoutId);
         if ($workout === null) {
@@ -734,14 +772,15 @@ class Database
         $db->beginTransaction();
         try {
             $stmt = $db->prepare(
-                "INSERT INTO workoutLog(workout_id, workout_name, workload, duration)
-                 VALUES(:workout_id, :workout_name, :workload, :duration)"
+                "INSERT INTO workoutLog(workout_id, workout_name, workload, duration, notes)
+                 VALUES(:workout_id, :workout_name, :workload, :duration, :notes)"
             );
             $stmt->execute([
                 ':workout_id' => $workoutId,
                 ':workout_name' => $workout['name'],
                 ':workload' => $workload,
                 ':duration' => $duration,
+                ':notes' => $notes,
             ]);
             $logId = (int)$db->lastInsertId();
 
@@ -799,6 +838,7 @@ class Database
                 w.id IS NULL AS workout_deleted,
                 wl.workload AS actual_workload,
                 wl.duration,
+                wl.notes,
                 wl.created_at,
                 MAX(wl.workload) OVER (
                     PARTITION BY wl.workout_id ORDER BY wl.created_at, wl.id

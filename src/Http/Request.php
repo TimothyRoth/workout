@@ -114,6 +114,20 @@ class Request
     }
 
     /**
+     * Free text that keeps its line breaks (notes): trimmed, CRLF normalised, length-limited.
+     */
+    public function text(string $key, int $maxLength = 1000): string
+    {
+        $value = $this->raw($key);
+        $value = is_string($value) ? $value : ($value === null ? '' : (string)$value);
+        $value = trim(str_replace(["\r\n", "\r"], "\n", $value));
+        if (mb_strlen($value) > $maxLength) {
+            throw HttpException::badRequest("Feld „{$key}“ darf höchstens {$maxLength} Zeichen lang sein.");
+        }
+        return $value;
+    }
+
+    /**
      * Optional string that may legitimately be absent.
      */
     public function optionalString(string $key, int $maxLength = 100): ?string

@@ -227,10 +227,18 @@ $r = request('GET', '/');
 check('workout name is html-escaped', str_contains($r['body'], 'Smoke &lt;b&gt;Test&lt;/b&gt;') && !str_contains($r['body'], 'Smoke <b>Test</b>'));
 check('frontpage shows never-trained workouts', str_contains($r['body'], 'Noch nie trainiert'));
 
-$r = request('POST', '/addExercise', ['workout_id' => $workoutId, 'exercise_name' => '  Bankdrücken  ']);
+$r = request('POST', '/addExercise', ['workout_id' => $workoutId, 'exercise_name' => '  Bankdrücken  ', 'exercise_notes' => " Sitz auf 4\r\nenger Griff "]);
 $exerciseId = (int)db()->query("SELECT id FROM exercises WHERE workout_id=$workoutId")->fetchColumn();
 check('add exercise redirects to anchor', $r['status'] === 303 && $r['location'] === "/workout?workout_id=$workoutId#exercise-$exerciseId", "loc {$r['location']}");
 check('exercise name trimmed', db()->query("SELECT name FROM exercises WHERE id=$exerciseId")->fetchColumn() === 'Bankdrücken');
+check('exercise notes keep their line breaks', db()->query("SELECT notes FROM exercises WHERE id=$exerciseId")->fetchColumn() === "Sitz auf 4\nenger Griff");
+$r = request('POST', '/editExercise', ['exercise_id' => $exerciseId, 'exercise_name' => 'Bankdrücken', 'exercise_notes' => str_repeat('x', 501)]);
+check('too long notes rejected', $r['status'] === 400);
+$r = request('POST', '/editExercise', ['exercise_id' => $exerciseId, 'exercise_name' => 'Bankdrücken', 'exercise_notes' => 'Sitz auf 4']);
+check('edit exercise stores notes', $r['status'] === 303 && db()->query("SELECT notes FROM exercises WHERE id=$exerciseId")->fetchColumn() === 'Sitz auf 4');
+$r = request('GET', "/workout?workout_id=$workoutId");
+check('workout page shows exercise notes', str_contains($r['body'], '<p class="exercise-notes">') && str_contains($r['body'], 'Sitz auf 4'));
+check('workout page suggests known exercise names', preg_match('/<datalist id="exercise-names">.*<option value="Bankdrücken">.*<\/datalist>/s', $r['body']) === 1 && substr_count($r['body'], 'list="exercise-names"') >= 2);
 
 $r = request('POST', '/addSet', ['exercise_id' => $exerciseId, 'amount' => 3, 'repetitions' => 8, 'unit' => 'kg', 'load' => 80, 'rest_time' => 120]);
 check('add 3 sets', $r['status'] === 303 && (int)db()->query("SELECT COUNT(*) FROM sets WHERE exercise_id=$exerciseId")->fetchColumn() === 3);
@@ -284,6 +292,7 @@ $r = request('GET', "/api/workout/$workoutId");
 $plan = json_decode($r['body'], true);
 check('api plan 200 json', $r['status'] === 200 && ($plan['status'] ?? '') === 'success');
 check('api plan nests sets', count($plan['workout']['exercises'][0]['sets'] ?? []) === 2);
+check('api plan carries exercise notes', ($plan['workout']['exercises'][0]['notes'] ?? null) === 'Sitz auf 4');
 check('api plan exposes unit and load', ($plan['workout']['exercises'][0]['sets'][1]['unit'] ?? '') === 'kg' && (float)($plan['workout']['exercises'][0]['sets'][1]['load'] ?? 0) === 80.0);
 
 check('api plan carries last performance (none yet)', array_key_exists('last', $plan) && $plan['last'] === null);
@@ -337,12 +346,13 @@ check('duplicate workout redirects to the copy', $r['status'] === 303 && $copyId
 check('duplicate workout copies exercises and sets', (int)db()->query("SELECT COUNT(*) FROM sets s JOIN exercises e ON e.id = s.exercise_id WHERE e.workout_id=$copyId")->fetchColumn() === 2);
 request('POST', '/deleteWorkout', ['workout_id' => $copyId]);
 
-$logPayload = fn(array $sets) => json_encode(['workout_id' => $workoutId, 'duration' => 42, 'exercises' => [['exercise_id' => $exerciseId, 'name' => 'Bankdrücken', 'sets' => $sets]]]);
+$logPayload = fn(array $sets) => json_encode(['workout_id' => $workoutId, 'duration' => 42, 'notes' => " Lief gut,\r\nSchulter zwickt ", 'exercises' => [['exercise_id' => $exerciseId, 'name' => 'Bankdrücken', 'sets' => $sets]]]);
 $setsA = [['reps' => 8, 'unit' => 'kg', 'load' => '80', 'rest_time' => 120], ['reps' => 12, 'unit' => 'bw', 'load' => null, 'rest_time' => 60]];
 $r = request('POST', '/api/workout/log', $logPayload($setsA), ['Content-Type' => 'application/json']);
 check('api log 200', $r['status'] === 200, "got {$r['status']} {$r['body']}");
 $logId = (int)db()->query("SELECT id FROM workoutLog WHERE workout_id=$workoutId ORDER BY id DESC LIMIT 1")->fetchColumn();
 check('log stored with workout name snapshot', $logId > 0 && db()->query("SELECT workout_name FROM workoutLog WHERE id=$logId")->fetchColumn() === $name);
+check('log stores the session notes', db()->query("SELECT notes FROM workoutLog WHERE id=$logId")->fetchColumn() === "Lief gut,\nSchulter zwickt");
 check('workload computed on the server (8×80 + 12 reps bodyweight)', (float)db()->query("SELECT workload FROM workoutLog WHERE id=$logId")->fetchColumn() === 652.0);
 $stored = db()->query("SELECT ls.repetitions, ls.unit, ls.load, ls.rest_time, le.exercise_id FROM logSets ls JOIN logExercises le ON le.id = ls.log_exercise_id WHERE le.log_id=$logId ORDER BY ls.position")->fetchAll(PDO::FETCH_ASSOC);
 check('logged sets stored in tables', count($stored) === 2 && (int)$stored[0]['exercise_id'] === $exerciseId && $stored[1]['unit'] === 'bw' && $stored[1]['load'] === null && (int)$stored[0]['rest_time'] === 120, json_encode($stored));
@@ -372,6 +382,7 @@ $r = request('POST', '/api/workout/log', $logPayload([['reps' => 10, 'unit' => '
 $r = request('GET', '/logs');
 check('logs page 200 with zero-workload entry', $r['status'] === 200, "got {$r['status']}");
 check('logs page shows first entry label', str_contains($r['body'], 'Erster Eintrag'));
+check('logs page shows session notes with line break', str_contains($r['body'], "<span>Lief gut,\nSchulter zwickt</span>"));
 check('logs page shows new record label', str_contains($r['body'], 'Neuer Bestwert!'));
 check('logs page shows below-best percentage', str_contains($r['body'], '-100,0% vom Bestwert'));
 check('logs page renders structured set labels', str_contains($r['body'], '>80 kg<') && str_contains($r['body'], '>Körpergewicht<'));
@@ -411,7 +422,7 @@ check('logout revokes the remember token', (int)db()->query('SELECT COUNT(*) FRO
 check('console deletes the user', str_contains($console('app:user:delete smoke'), 'deleted'));
 
 // --- schema state ----------------------------------------------------------
-check('schema version set', (int)db()->query('PRAGMA user_version')->fetchColumn() === 4);
+check('schema version set', (int)db()->query('PRAGMA user_version')->fetchColumn() === 5);
 check('sets table has no legacy column', !in_array('measure_unit', array_column(db()->query('PRAGMA table_info(sets)')->fetchAll(PDO::FETCH_ASSOC), 'name'), true));
 check('no orphan exercises', (int)db()->query('SELECT COUNT(*) FROM exercises WHERE workout_id NOT IN (SELECT id FROM workouts)')->fetchColumn() === 0);
 check('no orphan sets', (int)db()->query('SELECT COUNT(*) FROM sets WHERE exercise_id NOT IN (SELECT id FROM exercises)')->fetchColumn() === 0);

@@ -17,6 +17,9 @@ $exerciseId = (int)$exercise['id'];
     </summary>
 
     <div class="exercise-body">
+        <?php if (($exercise['notes'] ?? '') !== '') { ?>
+            <p class="exercise-notes"><?= icon('note', 'icon-sm') ?><span><?= e($exercise['notes']) ?></span></p>
+        <?php } ?>
         <?php if (empty($exercise['sets'])) { ?>
             <p class="hint">Noch keine Sätze.</p>
         <?php } else {

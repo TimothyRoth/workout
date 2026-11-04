@@ -39,7 +39,11 @@
         <input type="hidden" name="exercise_id" value="<?= e($exercise['id']) ?>">
         <label class="field">
             <span>Name</span>
-            <input class="input" type="text" name="exercise_name" value="<?= e($exercise['name']) ?>" maxlength="100" autocomplete="off" required>
+            <input class="input" type="text" name="exercise_name" value="<?= e($exercise['name']) ?>" maxlength="100" autocomplete="off" list="exercise-names" required>
+        </label>
+        <label class="field">
+            <span>Notiz</span>
+            <textarea class="input textarea" name="exercise_notes" rows="2" maxlength="500" placeholder="z. B. Sitz auf 4, enger Griff"><?= e($exercise['notes'] ?? '') ?></textarea>
         </label>
         <button class="btn btn-primary btn-block" type="submit">Speichern</button>
     </form>

@@ -97,6 +97,10 @@ const bind = () => {
     $("rest-minus").addEventListener("click", () => adjustRest(-REST_ADJUST_SECONDS));
     $("rest-plus").addEventListener("click", () => adjustRest(REST_ADJUST_SECONDS));
     $("summary-save").addEventListener("click", submit);
+    $("summary-notes").addEventListener("input", event => {
+        session.notes = event.target.value;
+        save();
+    });
 
     // Back in the foreground: a rest that ended meanwhile is handled right away, its notification is cleared.
     document.addEventListener("visibilitychange", () => {
@@ -158,6 +162,7 @@ const build = async (workoutId, workoutUpdated) => {
         startTime: Date.now(),
         current: {e: 0, s: 0},
         rest: null,
+        notes: "",
         last: last ? {workload: Number(last.workload), createdAt: last.created_at} : null,
         exercises: workout.exercises.map(exercise => {
             const lastSets = lastSetsFor(exercise);
@@ -166,6 +171,7 @@ const build = async (workoutId, workoutUpdated) => {
             return {
                 id: exercise.id,
                 name: exercise.name,
+                notes: exercise.notes ?? "",
                 // best logged set per unit, updated during the session so a second improvement also counts
                 records: Object.fromEntries(units.map(unit => [unit, records[`${nameKey}|${unit}`]
                     ? {reps: records[`${nameKey}|${unit}`].repetitions, load: records[`${nameKey}|${unit}`].load, score: Number(records[`${nameKey}|${unit}`].score), fresh: false}
@@ -386,6 +392,7 @@ const render = () => {
                 <h2>${esc(exercise.name)}</h2>
                 ${exercise.sets.some(set => set.last) ? '<span class="hint">letztes Mal</span>' : ""}
             </header>
+            ${exercise.notes ? `<p class="session-exercise-notes">${noteIcon}<span>${esc(exercise.notes)}</span></p>` : ""}
             ${renderRecordLine(exercise)}
             ${exercise.sets.map((set, s) => renderSet(set, e, s)).join("")}
         </section>
@@ -446,6 +453,7 @@ const svg = path => `<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" s
 const minusIcon = svg('<path d="M5 12h14"/>');
 const plusIcon = svg('<path d="M12 5v14M5 12h14"/>');
 
+const noteIcon = svg('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>');
 const checkIcon = '<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
 
 const shortLoad = (unit, load) => {
@@ -503,6 +511,7 @@ const openSummary = () => {
     $("summary-open").textContent = open === 1 ? "1 Satz ist noch offen und wird nicht gespeichert." : `${open} Sätze sind noch offen und werden nicht gespeichert.`;
     $("summary-save").disabled = done === 0;
 
+    $("summary-notes").value = session.notes ?? "";
     $("session-summary").showModal();
 };
 
@@ -548,6 +557,7 @@ const submit = async () => {
                 duration: durationMinutes(),
                 exercises: loggedExercises(),
                 update_plan: !$("summary-plan").hidden && $("summary-update-plan").checked,
+                notes: session.notes ?? "",
             }),
         });
 

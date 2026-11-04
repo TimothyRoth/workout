@@ -463,6 +463,48 @@ input[type="number"]::-webkit-inner-spin-button {
     transition: border-color .15s, box-shadow .15s;
 }
 
+.textarea {
+    min-height: 72px;
+    resize: vertical;
+    line-height: 1.4;
+}
+
+.exercise-notes,
+.log-notes,
+.session-exercise-notes {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.exercise-notes span,
+.log-notes span,
+.session-exercise-notes span {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.exercise-notes .icon,
+.log-notes .icon,
+.session-exercise-notes .icon {
+    flex: none;
+    margin-top: 2px;
+}
+
+.exercise-notes {
+    padding: 12px 0 0;
+}
+
+.log-notes {
+    margin: -4px 0 12px;
+}
+
+.session-exercise-notes {
+    margin: -4px 0 8px;
+}
+
 .input::placeholder {
     color: var(--muted);
 }

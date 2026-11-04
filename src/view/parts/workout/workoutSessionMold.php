@@ -37,6 +37,10 @@
             </div>
             <div class="badges" id="summary-badges"></div>
             <p class="hint" id="summary-open" hidden></p>
+            <label class="field">
+                <span>Notiz</span>
+                <textarea class="input textarea" id="summary-notes" rows="2" maxlength="1000" placeholder="Wie lief es? (optional)"></textarea>
+            </label>
             <label class="switch summary-plan" id="summary-plan" hidden>
                 <input type="checkbox" id="summary-update-plan">
                 <span class="switch-track"></span>

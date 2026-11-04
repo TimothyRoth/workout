@@ -123,6 +123,7 @@ class Controller
                 'title' => $workout['name'],
                 'workout' => $workout,
                 'exercisesOpen' => count($workout['exercises']) <= 2, // short workouts start expanded
+                'exerciseNames' => Database::getExerciseNames(),
             ]);
         });
 
@@ -174,14 +175,14 @@ class Controller
         $this->router->map('POST', '/addExercise', function () {
             $workout = $this->requireWorkout($this->request->int('workout_id'));
             $name = $this->request->string('exercise_name');
-            $exerciseId = Database::addExercise($name, $workout['id']);
+            $exerciseId = Database::addExercise($name, $workout['id'], $this->request->text('exercise_notes', 500));
             $this->redirectToExercise($workout['id'], $exerciseId);
         });
 
         $this->router->map('POST', '/editExercise', function () {
             $exercise = $this->requireExercise($this->request->int('exercise_id'));
             $name = $this->request->string('exercise_name');
-            Database::editExercise($exercise['id'], $name);
+            Database::editExercise($exercise['id'], $name, $this->request->text('exercise_notes', 500));
             $this->redirectToExercise($exercise['workout_id'], $exercise['id']);
         });
 
@@ -291,7 +292,7 @@ class Controller
             $duration = $this->request->int('duration', 0, 24 * 60);
             $exercises = $this->parseLoggedExercises($this->request->raw('exercises'));
 
-            $id = Database::addLog($workout['id'], $duration, $exercises);
+            $id = Database::addLog($workout['id'], $duration, $exercises, $this->request->text('notes', 1000));
 
             // "Plan aktualisieren" in the session summary: today's reps and loads become the new plan.
             $planUpdated = 0;

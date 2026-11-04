@@ -63,6 +63,10 @@ $classify = static function (array $log): array {
                     </div>
                 </header>
 
+                <?php if (($log['notes'] ?? '') !== '') { ?>
+                    <p class="log-notes"><?= icon('note', 'icon-sm') ?><span><?= e($log['notes']) ?></span></p>
+                <?php } ?>
+
                 <div class="stack">
                     <div class="stats">
                         <div class="stat"><b><?= e($log['duration']) ?></b><span>Minuten</span></div>

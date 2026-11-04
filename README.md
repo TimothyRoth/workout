@@ -41,6 +41,13 @@ with the log and writes today's reps and loads back into the plan sets
 (`Database::applyPerformanceToPlan()`), pre-checked only when no set was below plan.
 The front page shows per workout when it was last trained and how often.
 
+Exercises carry a free-text note (plan sheet, shown on the workout page and in the
+session), sessions carry one too (summary sheet, shown on the logs page); both are
+schema v5 columns read through `Request::text()`, which keeps line breaks. The exercise
+name inputs get a `<datalist>` of every name ever used in plans or logs
+(`Database::getExerciseNames()`), so the same exercise keeps the same spelling and its
+history and records stay matched.
+
 `App\Http\Auth` keeps the login in a PHP session (`workout_session`, HttpOnly, SameSite=Lax,
 Secure on HTTPS). "Angemeldet bleiben" adds a `workout_remember` cookie for 30 days, backed
 by the `auth_tokens` table (selector + hashed validator, rotated on every use, revoked on
