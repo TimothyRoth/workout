@@ -126,11 +126,21 @@ is remembered in `localStorage`) and toggles the offline banner in the layout.
 
 ## Deploy
 
-Production is a plain `git pull` on the server. Static assets are cache-busted with
-the short hash of the checked-out commit (read from `.git/HEAD` at runtime, see
-`src/Version.php`), so every deploy automatically invalidates CSS and JS.
+On the server, as root:
 
-Back up `workout.db` before deploying a release that bumps the schema version.
+```bash
+git -c safe.directory="$PWD" pull --ff-only
+bin/update.sh php8.4
+```
+
+`bin/update.sh` gives the files back to `www-data`, backs up the database to
+`var/backup/<timestamp>/` (with `VACUUM INTO`, safe while the app is running), runs
+`composer install --no-dev`, and finally runs `bin/health-check.php`. The health check opens the
+database, which applies pending schema migrations, and fails the update if the login page
+does not render. Pass `php8.4` because PHP-FPM runs 8.4 while the CLI default is newer.
+
+Static assets are cache-busted with the short hash of the checked-out commit (read from
+`.git/HEAD` at runtime, see `src/Version.php`), so every deploy automatically invalidates CSS and JS.
 
 Never open `workout.db` from the CLI as your own user: SQLite creates `-wal`/`-shm` files
 owned by you that PHP-FPM cannot write, and every page returns 500 until they are removed.
