@@ -1,0 +1,24 @@
+<table class="sets" data-sortable="sets" data-parent-id="{{ exercise.id }}">
+    <thead>
+    <tr>
+        <th class="num">#</th>
+        <th>Wdh.</th>
+        <th>Last</th>
+        <th>Pause</th>
+        <th class="actions"></th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for set in exercise.sets %}
+        <tr data-set-id="{{ set.id }}" data-sortable-item>
+            <td class="num drag-handle" data-drag-handle aria-label="Satz {{ loop.index }} verschieben">{{ icon('grip', 'icon-sm') }}<span>{{ loop.index }}</span></td>
+            <td>{{ set.repetitions }}</td>
+            <td class="unit">{{ set|set_label }}</td>
+            <td>{{ set.rest_time }} s</td>
+            <td class="actions">
+                <button class="icon-btn" type="button" data-dialog="edit-set-{{ set.id }}" aria-label="Satz {{ loop.index }} bearbeiten">{{ icon('edit', 'icon-sm') }}</button>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>

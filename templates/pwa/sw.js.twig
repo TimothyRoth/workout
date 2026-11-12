@@ -1,11 +1,11 @@
-// Workout service worker – version <?= VERSION ?> (rendered by the controller, cache name changes per deploy)
+// Workout service worker – version {{ version }} (rendered by the controller, cache name changes per deploy)
 //
 // Strategy:
 //   /css /js /img, manifest   cache-first    (URLs are versioned with ?v=<commit>, so they are immutable)
 //   HTML pages (GET)          network-first, cache fallback – the last seen pages stay readable offline
 //   everything else           network only   (the plan JSON, the log POST)
 // Also required for Chrome's install prompt (needs a fetch handler). No background sync, no precache.
-const CACHE = 'workout-<?= VERSION ?>';
+const CACHE = 'workout-{{ version }}';
 const OFFLINE_HTML = `<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Offline · Workout</title><style>body{font-family:system-ui,sans-serif;background:#0b1120;color:#e9edf6;display:grid;place-items:center;min-height:100vh;margin:0;text-align:center;padding:24px}p{color:#94a0b8}</style></head><body><div><h1>Du bist offline</h1><p>Diese Seite wurde noch nicht geladen. Sobald wieder Netz da ist, lädt sie automatisch.</p></div></body></html>`;
 
 self.addEventListener('install', (event) => {

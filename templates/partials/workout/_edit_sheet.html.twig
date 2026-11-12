@@ -1,0 +1,24 @@
+<dialog class="sheet" id="edit-workout-{{ workout.id }}">
+    <div class="sheet-header">
+        <h2>Workout bearbeiten</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Schließen">{{ icon('close') }}</button>
+    </div>
+    <form class="sheet-body" method="POST" action="/editWorkout">
+        <input type="hidden" name="workout_id" value="{{ workout.id }}">
+        <label class="field">
+            <span>Name</span>
+            <input class="input" type="text" name="workout_name" value="{{ workout.name }}" maxlength="100" autocomplete="off" required>
+        </label>
+        <button class="btn btn-primary btn-block" type="submit">Speichern</button>
+    </form>
+    <div class="sheet-actions">
+        <form method="POST" action="/duplicateWorkout">
+            <input type="hidden" name="workout_id" value="{{ workout.id }}">
+            <button class="btn btn-ghost btn-block" type="submit">{{ icon('copy', 'icon-sm') }} Workout duplizieren</button>
+        </form>
+    </div>
+    <form class="sheet-footer" method="POST" action="/deleteWorkout" data-confirm="Workout „{{ workout.name }}“ mit allen Übungen löschen? Das kann nicht rückgängig gemacht werden.">
+        <input type="hidden" name="workout_id" value="{{ workout.id }}">
+        <button class="btn btn-danger btn-block" type="submit">{{ icon('trash', 'icon-sm') }} Workout löschen</button>
+    </form>
+</dialog>

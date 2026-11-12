@@ -1,0 +1,98 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<header class="topbar">
+    <a class="icon-btn" href="/" aria-label="Zurück">{{ icon('back') }}</a>
+    <h1>Logs</h1>
+    <a class="icon-btn" href="/export.json" download aria-label="Alle Daten als JSON exportieren" title="Export (JSON)">{{ icon('download') }}</a>
+</header>
+
+{% if logs is empty %}
+    <p class="empty">Noch keine Einträge. Starte ein Workout, dann erscheint es hier.</p>
+{% else %}
+    <div class="stack">
+        {{ include('partials/log/_calendar.html.twig') }}
+        {% for log in logs %}
+            <article class="card log" id="log-{{ log.id }}">
+                <header class="card-header">
+                    <div class="card-header-text">
+                        <h2>{{ log.workout_name }}{% if log.workout_deleted %}<span class="tag">gelöscht</span>{% endif %}</h2>
+                        <p class="hint">{{ log.created_at|local_datetime }}</p>
+                    </div>
+                    <button class="icon-btn" type="button" data-dialog="edit-log-{{ log.id }}" aria-label="Eintrag bearbeiten">{{ icon('edit') }}</button>
+                </header>
+                {{ include('partials/log/_edit_sheet.html.twig') }}
+
+                {% if log.notes|default('') is not same as('') %}
+                    <p class="log-notes">{{ icon('note', 'icon-sm') }}<span>{{ log.notes }}</span></p>
+                {% endif %}
+
+                <div class="stack">
+                    <div class="stats">
+                        <div class="stat"><b>{{ log.duration }}</b><span>Minuten</span></div>
+                        <div class="stat"><b>{{ log.actual_workload|format_number }}</b><span>Workload</span></div>
+                    </div>
+                    <div class="badges">
+                        <span class="badge {{ log.badges.best_class }}">{{ log.badges.best }}</span>
+                        {% if log.badges.previous is not null %}
+                            <span class="badge {{ log.badges.previous_class }}">{{ log.badges.previous }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if log.exercises is not empty %}
+                    <details class="disclosure">
+                        <summary>Protokoll anzeigen {{ icon('chevron', 'icon-sm') }}</summary>
+                        <div class="disclosure-body">
+                            {% for exercise in log.exercises %}
+                                <div>
+                                    <h3>{{ exercise.name }}</h3>
+                                    <table class="sets">
+                                        <thead>
+                                        <tr>
+                                            <th class="num">#</th>
+                                            <th>Wdh.</th>
+                                            <th>Last</th>
+                                            <th>Pause</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        {% for set in exercise.sets %}
+                                            <tr>
+                                                <td class="num">{{ loop.index }}</td>
+                                                <td>{{ set.repetitions }}</td>
+                                                <td class="unit">{{ set|set_label }}</td>
+                                                <td>{{ set.rest_time }} s</td>
+                                            </tr>
+                                        {% endfor %}
+                                        </tbody>
+                                    </table>
+                                    {% if exercise.history_count > 1 %}
+                                        <details class="disclosure disclosure-nested">
+                                            <summary>Verlauf ({{ exercise.history_count }}) {{ icon('chevron', 'icon-sm') }}</summary>
+                                            {% for series in exercise.charts %}
+                                                <div class="chart" data-chart="{{ series|json_encode(constant('JSON_UNESCAPED_UNICODE') b-or constant('JSON_THROW_ON_ERROR')) }}"></div>
+                                            {% endfor %}
+                                            <table class="sets history">
+                                                <tbody>
+                                                {% for entry in exercise.history %}
+                                                    <tr{{ entry.is_current ? ' class="is-current"' }}>
+                                                        <td class="num">{{ entry.created_at|local_datetime('d.m.y') }}</td>
+                                                        <td class="unit">{{ entry.sets_line }}</td>
+                                                        <td class="volume">{{ entry.volume|format_number }}</td>
+                                                    </tr>
+                                                {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </details>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </details>
+                {% endif %}
+            </article>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock %}

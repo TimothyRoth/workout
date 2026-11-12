@@ -1,0 +1,26 @@
+{# Training calendar card: weekly streak, counts and a 16-week heatmap (js/calendar.js shows a tapped day). #}
+<section class="card calendar" aria-label="Trainingskalender">
+    <div class="stats stats-3">
+        <div class="stat"><b>{{ calendar.streak }}</b><span>{{ calendar.streak == 1 ? 'Woche in Folge' : 'Wochen in Folge' }}</span></div>
+        <div class="stat"><b>{{ calendar.thisWeek }}</b><span>diese Woche</span></div>
+        <div class="stat"><b>{{ calendar.lastFourWeeks }}</b><span>letzte 4 Wochen</span></div>
+    </div>
+    <div class="cal">
+        <div class="cal-months">
+            {% for month in calendar.months %}
+                <span style="grid-column: {{ month.col + 1 }}">{{ month.label }}</span>
+            {% endfor %}
+        </div>
+        <div class="cal-body">
+            <div class="cal-weekdays"><span>Mo</span><span></span><span>Mi</span><span></span><span>Fr</span><span></span><span></span></div>
+            <div class="cal-grid" role="grid">
+                {%- for week in calendar.weeks %}{% for day in week -%}
+                    {%- set level = day.future ? 'is-future' : (day.count == 0 ? '' : (day.count == 1 ? 'cal-1' : 'cal-2')) -%}
+                    {%- set day_title = day.label ~ (day.count > 0 ? ' · ' ~ day.names|join(', ') : '') -%}
+                    <button type="button" class="cal-day {{ (level ~ (day.today ? ' is-today' : ''))|trim }}" data-cal-day="{{ day_title }}" aria-label="{{ day_title }}"{{ day.future ? ' disabled' }}></button>
+                {%- endfor %}{% endfor -%}
+            </div>
+        </div>
+        <p class="cal-caption hint" data-cal-caption>Tippe auf einen Tag.</p>
+    </div>
+</section>

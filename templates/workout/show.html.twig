@@ -1,0 +1,38 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<header class="topbar">
+    <a class="icon-btn" href="/" aria-label="Zurück">{{ icon('back') }}</a>
+    <h1>{{ workout.name }}</h1>
+    <button class="icon-btn" type="button" data-dialog="edit-workout-{{ workout.id }}" aria-label="Workout bearbeiten">{{ icon('edit') }}</button>
+</header>
+{{ include('partials/workout/_edit_sheet.html.twig') }}
+
+<div class="stack-lg">
+    <button class="btn btn-primary btn-block btn-lg" type="button" id="start-workout"
+            data-workout-id="{{ workout.id }}" data-workout-updated="{{ workout.updated_at }}">
+        {{ icon('play') }} Workout starten
+    </button>
+
+    <form class="card inline-form" method="POST" action="/addExercise">
+        <input type="hidden" name="workout_id" value="{{ workout.id }}">
+        <input class="input" name="exercise_name" type="text" placeholder="Neue Übung" maxlength="100" autocomplete="off" list="exercise-names" required>
+        <button class="icon-btn icon-btn-accent" type="submit" aria-label="Übung hinzufügen">{{ icon('plus') }}</button>
+    </form>
+    <datalist id="exercise-names">
+        {% for exercise_name in exercise_names %}<option value="{{ exercise_name }}"></option>{% endfor %}
+    </datalist>
+
+    {% if workout.exercises is empty %}
+        <p class="empty">Noch keine Übungen. Füge oben die erste hinzu.</p>
+    {% else %}
+        <div class="stack" data-sortable="exercises" data-parent-id="{{ workout.id }}">
+            {% for exercise in workout.exercises %}
+                {{ include('partials/exercise/_card.html.twig') }}
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+
+{{ include('partials/workout/_session.html.twig') }}
+{% endblock %}

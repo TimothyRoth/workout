@@ -1,0 +1,41 @@
+{# One exercise on the workout page: a collapsed row (name + one-line summary of the sets), expandable to the
+   set table and its actions. js/exercises.js keeps the open state per workout and opens the exercise named in
+   the URL hash. #}
+<details class="card exercise" id="exercise-{{ exercise.id }}" data-exercise-id="{{ exercise.id }}" data-sortable-item{{ exercises_open ? ' open' }}>
+    <summary class="exercise-summary">
+        <span class="drag-handle" data-drag-handle aria-label="Übung verschieben">{{ icon('grip') }}</span>
+        <span class="exercise-summary-text">
+            <span class="exercise-name">{{ exercise.name }}</span>
+            <span class="exercise-sets-summary">{{ exercise.sets|exercise_summary }}</span>
+        </span>
+        {{ icon('chevron', 'exercise-chevron') }}
+    </summary>
+
+    <div class="exercise-body">
+        {% if exercise.notes|default('') is not same as('') %}
+            <p class="exercise-notes">{{ icon('note', 'icon-sm') }}<span>{{ exercise.notes }}</span></p>
+        {% endif %}
+        {% if exercise.sets is empty %}
+            <p class="hint">Noch keine Sätze.</p>
+        {% else %}
+            {{ include('partials/set/_table.html.twig') }}
+        {% endif %}
+
+        <div class="exercise-actions">
+            <button class="btn btn-ghost btn-block" type="button" data-dialog="add-sets-{{ exercise.id }}">{{ icon('plus', 'icon-sm') }} Sätze hinzufügen</button>
+            {% if exercise.sets is not empty %}
+                <form method="POST" action="/duplicateSet">
+                    <input type="hidden" name="set_id" value="{{ (exercise.sets|last).id }}">
+                    <button class="btn btn-ghost" type="submit" aria-label="Letzten Satz kopieren" title="Letzten Satz kopieren">{{ icon('copy', 'icon-sm') }}</button>
+                </form>
+            {% endif %}
+            <button class="btn btn-ghost" type="button" data-dialog="edit-exercise-{{ exercise.id }}" aria-label="Übung bearbeiten" title="Übung bearbeiten">{{ icon('edit', 'icon-sm') }}</button>
+        </div>
+    </div>
+</details>
+
+{# The sheets live next to the <details>: content of a closed <details> is not rendered, a modal inside it would not show. #}
+{% for set in exercise.sets %}
+    {{ include('partials/set/_edit_sheet.html.twig') }}
+{% endfor %}
+{{ include('partials/exercise/_sheets.html.twig') }}

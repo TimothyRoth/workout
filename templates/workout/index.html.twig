@@ -1,0 +1,27 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<header class="topbar">
+    <h1>Workouts</h1>
+    <a class="icon-btn" href="/logs" aria-label="Logs" title="Logs">{{ icon('history') }}</a>
+    <form method="POST" action="/logout" data-confirm="Wirklich abmelden?">
+        <button class="icon-btn" type="submit" aria-label="Abmelden" title="Abmelden">{{ icon('logout') }}</button>
+    </form>
+</header>
+
+<div class="stack-lg">
+    {{ include('partials/workout/_add.html.twig') }}
+
+    {% if workouts is empty %}
+        <p class="empty">Noch keine Workouts. Lege oben dein erstes an.</p>
+    {% else %}
+        <ul class="list">
+            {% for workout in workouts %}
+                {{ include('partials/workout/_row.html.twig') }}
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {{ include('partials/_install_card.html.twig') }}
+</div>
+{% endblock %}

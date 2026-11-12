@@ -68,6 +68,7 @@ final class AppExtension extends AbstractExtension
     {
         return [
             new TwigFilter('format_number', Format::number(...)),
+            new TwigFilter('input_number', self::inputNumber(...)),
             new TwigFilter('local_datetime', $this->localDatetime(...)),
             new TwigFilter('workout_subtitle', $this->workoutSubtitle(...)),
             new TwigFilter('set_label', $this->setLabel(...)),
@@ -107,6 +108,12 @@ final class AppExtension extends AbstractExtension
         }
 
         return json_encode(['imports' => $imports], \JSON_UNESCAPED_SLASHES | \JSON_HEX_TAG | \JSON_THROW_ON_ERROR);
+    }
+
+    /** A load as value of a number input: dot as decimal separator, no trailing zeros ("82.5", "80"). */
+    public static function inputNumber(float|int|string|null $value): string
+    {
+        return null === $value ? '' : rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
     }
 
     /** A UTC "Y-m-d H:i:s" timestamp (as SQLite stores it) in local time. */

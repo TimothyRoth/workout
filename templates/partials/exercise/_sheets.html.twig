@@ -1,0 +1,52 @@
+<dialog class="sheet" id="add-sets-{{ exercise.id }}">
+    <div class="sheet-header">
+        <h2>Sätze hinzufügen</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Schließen">{{ icon('close') }}</button>
+    </div>
+    <form class="sheet-body" method="POST" action="/addSet">
+        <input type="hidden" name="exercise_id" value="{{ exercise.id }}">
+        <div class="grid-2">
+            <label class="field" for="add-{{ exercise.id }}-amount">
+                <span>Anzahl Sätze</span>
+                {% set input %}<input class="input" id="add-{{ exercise.id }}-amount" type="number" name="amount" min="1" max="10" value="3" inputmode="numeric" data-step="1" required>{% endset %}
+                {{ stepper(input) }}
+            </label>
+            <label class="field" for="add-{{ exercise.id }}-reps">
+                <span>Wiederholungen</span>
+                {% set input %}<input class="input" id="add-{{ exercise.id }}-reps" type="number" name="repetitions" min="0" max="10000" inputmode="numeric" data-step="1" value="10" required>{% endset %}
+                {{ stepper(input) }}
+            </label>
+            <label class="field" for="add-{{ exercise.id }}-rest">
+                <span>Pause (s)</span>
+                {% set input %}<input class="input" id="add-{{ exercise.id }}-rest" type="number" name="rest_time" min="0" max="3600" inputmode="numeric" data-step="15" value="90" required>{% endset %}
+                {{ stepper(input) }}
+            </label>
+        </div>
+        {{ include('partials/set/_load_fields.html.twig', {unit: 'kg'|unit, load: null, field_id: 'add-' ~ exercise.id}) }}
+        <button class="btn btn-primary btn-block" type="submit">{{ icon('plus', 'icon-sm') }} Hinzufügen</button>
+    </form>
+    <div class="sheet-footer"></div>
+</dialog>
+
+<dialog class="sheet" id="edit-exercise-{{ exercise.id }}">
+    <div class="sheet-header">
+        <h2>Übung bearbeiten</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Schließen">{{ icon('close') }}</button>
+    </div>
+    <form class="sheet-body" method="POST" action="/editExercise">
+        <input type="hidden" name="exercise_id" value="{{ exercise.id }}">
+        <label class="field">
+            <span>Name</span>
+            <input class="input" type="text" name="exercise_name" value="{{ exercise.name }}" maxlength="100" autocomplete="off" list="exercise-names" required>
+        </label>
+        <label class="field">
+            <span>Notiz</span>
+            <textarea class="input textarea" name="exercise_notes" rows="2" maxlength="500" placeholder="z. B. Sitz auf 4, enger Griff">{{ exercise.notes|default('') }}</textarea>
+        </label>
+        <button class="btn btn-primary btn-block" type="submit">Speichern</button>
+    </form>
+    <form class="sheet-footer" method="POST" action="/deleteExercise" data-confirm="Übung „{{ exercise.name }}“ mit allen Sätzen löschen?">
+        <input type="hidden" name="exercise_id" value="{{ exercise.id }}">
+        <button class="btn btn-danger btn-block" type="submit">{{ icon('trash', 'icon-sm') }} Übung löschen</button>
+    </form>
+</dialog>

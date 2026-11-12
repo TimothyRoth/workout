@@ -111,4 +111,55 @@ final class SecurityTest extends AppWebTestCase
         self::assertResponseHeaderSame('Referrer-Policy', 'same-origin');
         self::assertResponseHeaderSame('X-Frame-Options', 'SAMEORIGIN');
     }
+
+    public function testAnonymousApiCallsGet401JsonAndAreNotRememberedAsTarget(): void
+    {
+        $this->createUser();
+
+        $this->client->request('GET', '/api/workout/1', server: ['HTTP_ACCEPT' => 'application/json']);
+        self::assertResponseStatusCodeSame(401);
+        self::assertSame(['status' => 'error', 'message' => 'Nicht angemeldet.'], json_decode($this->body(), true));
+
+        $this->client->request('POST', '/login', ['username' => 'smoke', 'password' => 'geheim123']);
+        self::assertResponseRedirects('/');
+    }
+
+    public function testAnonymousPagesBounceToTheLoginAndComeBackAfterwards(): void
+    {
+        $this->createUser();
+
+        $this->client->request('GET', '/workout?workout_id=1');
+        self::assertResponseRedirects('/login', 303);
+
+        $this->client->request('POST', '/login', ['username' => 'smoke', 'password' => 'geheim123']);
+        self::assertResponseRedirects('http://localhost/workout?workout_id=1');
+    }
+
+    public function testTheRememberCookieRestoresTheLoginEvenForTheApi(): void
+    {
+        $this->createUser();
+        $this->client->request('POST', '/login', ['username' => 'smoke', 'password' => 'geheim123', 'remember' => '1']);
+        $remember = $this->client->getCookieJar()->get('workout_remember');
+        $this->client->getCookieJar()->clear();
+        $this->client->getCookieJar()->set($remember);
+
+        $this->client->request('GET', '/api/workout/999999', server: ['HTTP_ACCEPT' => 'application/json']);
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame('Workout nicht gefunden.', json_decode($this->body(), true)['message']);
+    }
+
+    public function testAPasswordChangeEndsRememberedLogins(): void
+    {
+        $id = $this->createUser();
+        $this->client->request('POST', '/login', ['username' => 'smoke', 'password' => 'geheim123', 'remember' => '1']);
+        $remember = $this->client->getCookieJar()->get('workout_remember');
+        $this->client->getCookieJar()->clear();
+        $this->client->getCookieJar()->set($remember);
+        static::getContainer()->get(UserRepository::class)->updatePassword($id, password_hash('anders123', \PASSWORD_BCRYPT));
+
+        $this->client->request('GET', '/');
+
+        self::assertResponseRedirects('/login', 303);
+    }
 }

@@ -1,0 +1,33 @@
+<dialog class="sheet" id="edit-set-{{ set.id }}">
+    <div class="sheet-header">
+        <h2>Satz bearbeiten</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Schließen">{{ icon('close') }}</button>
+    </div>
+    <form class="sheet-body" method="POST" action="/editSet">
+        <input type="hidden" name="set_id" value="{{ set.id }}">
+        <div class="grid-2">
+            <label class="field" for="set-{{ set.id }}-reps">
+                <span>Wiederholungen</span>
+                {% set input %}<input class="input" id="set-{{ set.id }}-reps" type="number" name="repetitions" min="0" max="10000" inputmode="numeric" data-step="1" value="{{ set.repetitions }}" required>{% endset %}
+                {{ stepper(input) }}
+            </label>
+            <label class="field" for="set-{{ set.id }}-rest">
+                <span>Pause (s)</span>
+                {% set input %}<input class="input" id="set-{{ set.id }}-rest" type="number" name="rest_time" min="0" max="3600" inputmode="numeric" data-step="15" value="{{ set.rest_time }}" required>{% endset %}
+                {{ stepper(input) }}
+            </label>
+        </div>
+        {{ include('partials/set/_load_fields.html.twig', {unit: set.unit|unit, load: set.load, field_id: 'set-' ~ set.id}) }}
+        <button class="btn btn-primary btn-block" type="submit">Speichern</button>
+    </form>
+    <div class="sheet-actions">
+        <form method="POST" action="/duplicateSet" class="grow">
+            <input type="hidden" name="set_id" value="{{ set.id }}">
+            <button class="btn btn-ghost btn-block" type="submit">{{ icon('copy', 'icon-sm') }} Satz kopieren</button>
+        </form>
+    </div>
+    <form class="sheet-footer" method="POST" action="/deleteSet" data-confirm="Diesen Satz löschen?">
+        <input type="hidden" name="set_id" value="{{ set.id }}">
+        <button class="btn btn-danger btn-block" type="submit">{{ icon('trash', 'icon-sm') }} Satz löschen</button>
+    </form>
+</dialog>

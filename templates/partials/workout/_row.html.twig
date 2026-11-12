@@ -1,0 +1,8 @@
+<li class="list-item">
+    <a class="list-link" href="/workout?workout_id={{ workout.id }}">
+        <span class="title">{{ workout.name }}<small class="subtitle">{{ workout|workout_subtitle }}</small></span>
+        {{ icon('chevron') }}
+    </a>
+    <button class="icon-btn" type="button" data-dialog="edit-workout-{{ workout.id }}" aria-label="Workout bearbeiten">{{ icon('edit') }}</button>
+    {{ include('partials/workout/_edit_sheet.html.twig') }}
+</li>

@@ -117,6 +117,9 @@ function req(string $label, string $method, string $path, array|string|null $bod
                 sort($directives);
                 $value = implode(', ', $directives);
             }
+            if ($name === 'Content-Type') {
+                $value = strtolower(str_replace(' ', '', $value));
+            }
             $report .= strtolower($name) . ': ' . mask((string)$value) . "\n";
         }
     }
@@ -125,7 +128,8 @@ function req(string $label, string $method, string $path, array|string|null $bod
         $flags = strtolower(implode(';', array_map('trim', array_filter(explode(';', $c[3]), fn($f) => !preg_match('/^\s*(expires|max-age)=/i', $f)))));
         $report .= 'set-cookie: ' . $c[1] . ($c[2] === '' || $c[2] === 'deleted' ? ' (cleared)' : '') . ' ' . $flags . "\n";
     }
-    $report .= "\n" . normalise($content, $rawHeaders);
+    // Redirect bodies are never shown (the old app sent none, Symfony a "Redirecting to" page).
+    $report .= "\n" . ($status >= 300 && $status < 400 ? '' : normalise($content, $rawHeaders));
 
     $step++;
     file_put_contents(sprintf('%s/responses/%03d-%s.txt', $out, $step, $label), $report);

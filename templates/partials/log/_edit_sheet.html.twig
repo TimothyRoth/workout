@@ -1,0 +1,43 @@
+{# Correct a logged session: duration, notes, reps and loads of its sets; delete it. #}
+<dialog class="sheet" id="edit-log-{{ log.id }}">
+    <div class="sheet-header">
+        <h2>Eintrag bearbeiten</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Schließen">{{ icon('close') }}</button>
+    </div>
+    <form class="sheet-body" method="POST" action="/editLog">
+        <input type="hidden" name="log_id" value="{{ log.id }}">
+        <p class="hint">{{ log.workout_name }} · {{ log.created_at|local_datetime }}</p>
+        <label class="field" for="log-{{ log.id }}-duration">
+            <span>Dauer (Minuten)</span>
+            {% set input %}<input class="input" id="log-{{ log.id }}-duration" type="number" name="duration" min="0" max="1440" inputmode="numeric" data-step="5" value="{{ log.duration }}" required>{% endset %}
+            {{ stepper(input) }}
+        </label>
+        {% for exercise in log.exercises %}
+            <div class="log-edit-exercise">
+                <h3>{{ exercise.name }}</h3>
+                {% for set in exercise.sets %}
+                    {% set unit = set.unit|unit %}
+                    <div class="log-edit-set">
+                        <span class="num">{{ loop.index }}</span>
+                        <input class="input" type="number" name="sets[{{ set.id }}][reps]" min="0" max="10000" inputmode="numeric" value="{{ set.repetitions }}" aria-label="Wiederholungen Satz {{ loop.index }}" required>
+                        {% if unit.needsLoad() %}
+                            <input class="input" type="number" name="sets[{{ set.id }}][load]" min="0" step="any" inputmode="decimal" value="{{ set.load is null ? '' : set.load|format_number }}" aria-label="Last Satz {{ loop.index }}">
+                            <span class="hint">{{ unit.symbol() }}</span>
+                        {% else %}
+                            <span class="hint log-edit-unit">{{ unit.label() }}</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+        <label class="field">
+            <span>Notiz</span>
+            <textarea class="input textarea" name="notes" rows="2" maxlength="1000">{{ log.notes|default('') }}</textarea>
+        </label>
+        <button class="btn btn-primary btn-block" type="submit">Speichern</button>
+    </form>
+    <form class="sheet-footer" method="POST" action="/deleteLog" data-confirm="Diesen Eintrag endgültig löschen?">
+        <input type="hidden" name="log_id" value="{{ log.id }}">
+        <button class="btn btn-danger btn-block" type="submit">{{ icon('trash', 'icon-sm') }} Eintrag löschen</button>
+    </form>
+</dialog>

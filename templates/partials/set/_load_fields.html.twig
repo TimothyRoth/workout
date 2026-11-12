@@ -1,0 +1,13 @@
+{# Unit select + load input pair for set forms. Expects unit (App\Enum\Unit), load (?float) and field_id
+   (prefix for the input ids, so the labels point at the inputs rather than the stepper buttons). #}
+<div class="grid-2">
+    <label class="field">
+        <span>Einheit</span>
+        <select class="input" name="unit" data-unit-select>{% for option in unit_cases() %}<option value="{{ option.value }}" data-load-label="{{ option.loadLabel() ?? '' }}" data-load-step="{{ option.loadStep() }}"{{ option is same as(unit) ? ' selected' }}>{{ option.label() }}</option>{% endfor %}</select>
+    </label>
+    <label class="field" for="{{ field_id }}-load" data-load-field{{ unit.needsLoad() ? '' : ' hidden' }}>
+        <span data-load-label>{{ unit.loadLabel() ?? 'Gewicht (kg)' }}</span>
+        {% set input %}<input class="input" id="{{ field_id }}-load" type="number" name="load" min="0" step="any" inputmode="decimal" data-step="{{ unit.loadStep() }}" value="{{ load|input_number }}" {{ unit.needsLoad() ? 'required' : 'disabled' }}>{% endset %}
+        {{ stepper(input) }}
+    </label>
+</div>
