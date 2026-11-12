@@ -13,7 +13,7 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function __construct(
         private readonly int $id,
         private readonly string $username,
-        private readonly string $passwordHash,
+        private string $passwordHash,
     ) {
     }
 
@@ -30,6 +30,15 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getPassword(): string
     {
         return $this->passwordHash;
+    }
+
+    /**
+     * After a login re-hashed the password: the logged-in user must carry the new hash too, or the next
+     * request sees a changed password and logs the user out.
+     */
+    public function setPassword(string $passwordHash): void
+    {
+        $this->passwordHash = $passwordHash;
     }
 
     public function getRoles(): array

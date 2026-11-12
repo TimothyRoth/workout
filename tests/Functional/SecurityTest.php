@@ -55,7 +55,7 @@ final class SecurityTest extends AppWebTestCase
         self::assertSame([], $remember);
     }
 
-    public function testAnOldBcryptHashStillWorksAndIsUpgraded(): void
+    public function testAnOldBcryptHashStillWorksIsUpgradedAndKeepsTheLogin(): void
     {
         static::getContainer()->get(UserRepository::class)->create('smoke', password_hash('geheim123', \PASSWORD_BCRYPT, ['cost' => 10]));
 
@@ -63,6 +63,10 @@ final class SecurityTest extends AppWebTestCase
 
         self::assertResponseRedirects('/');
         self::assertStringStartsNotWith('$2y$10$', static::getContainer()->get(UserRepository::class)->findByUsername('smoke')['password_hash']);
+
+        // The upgrade must not log the user out on the next request.
+        $this->client->request('GET', '/');
+        self::assertResponseIsSuccessful();
     }
 
     public function testLogoutIsPostOnly(): void

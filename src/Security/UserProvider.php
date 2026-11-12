@@ -54,6 +54,7 @@ final class UserProvider implements UserProviderInterface, PasswordUpgraderInter
     {
         if ($user instanceof User) {
             $this->users->updatePassword($user->getId(), $newHashedPassword);
+            $user->setPassword($newHashedPassword);
         }
     }
 }
