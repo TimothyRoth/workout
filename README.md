@@ -149,16 +149,24 @@ git -c safe.directory="$PWD" pull --ff-only
 bin/update.sh php8.4
 ```
 
-`bin/update.sh` gives the files back to `www-data`, backs up the database to
-`var/backup/<timestamp>/` (with `VACUUM INTO`, safe while the app is running), runs
-`composer install --no-dev`, and finally runs `bin/health-check.php`. The health check opens the
-database, which applies pending schema migrations, and fails the update if the login page
+`bin/update.sh` gives the files back to `www-data` and backs up the database to
+`var/backup/<timestamp>/` (with `VACUUM INTO`, safe while the app is running). It then clears the
+cache, runs `composer install --no-dev`, creates an `APP_SECRET` in `.env.local` the first time,
+runs the migrations and finally `bin/health-check.php`, which fails the update if the login page
 does not render. Pass `php8.4` because PHP-FPM runs 8.4 while the CLI default is newer.
 
-Static assets are cache-busted with the short hash of the checked-out commit (read from
-`.git/HEAD` at runtime by `App\Asset\AppVersion`; `asset()` appends `?v=<hash>`), so every deploy
-automatically invalidates CSS and JS.
+The first deploy of the Symfony version also moves `workout.db` from the project root to
+`var/workout_prod.db` and parks the old file in `var/backup/pre-symfony/`. Everybody logs in once
+more afterwards.
 
-Never open `workout.db` from the CLI as your own user: SQLite creates `-wal`/`-shm` files
-owned by you that PHP-FPM cannot write, and every page returns 500 until they are removed.
-Use `sudo -u www-data` or work on a copy with `WORKOUT_DB`.
+Rollback to the pre-Symfony app (the schema is the same, no data conversion):
+
+```bash
+git -c safe.directory="$PWD" checkout -B main c2f74c1
+php8.4 -r '$d = new PDO("sqlite:var/workout_prod.db"); $d->exec("VACUUM INTO \"workout.db\"");'
+bin/update.sh php8.4    # the old script: chown, backup, composer install, health check
+```
+
+Never open the database from the CLI as your own user: SQLite creates `-wal`/`-shm` files owned
+by you that PHP-FPM cannot write, and every page returns 500 until they are removed. Use
+`sudo -u www-data` or work on a copy.
