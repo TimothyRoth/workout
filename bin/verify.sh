@@ -24,8 +24,25 @@ check "lint:yaml" env APP_ENV=dev "$PHP" bin/console lint:yaml config --parse-ta
 check "lint:twig" env APP_ENV=dev "$PHP" bin/console lint:twig templates --quiet
 check "lint:container" env APP_ENV=dev "$PHP" bin/console lint:container --quiet
 
-step "PHPUnit"
+step "PHPUnit (unit, repository, HTTP)"
 check "phpunit" "$PHP" bin/phpunit --no-progress
+
+step "Production mode: migrations on an empty database, then the login page"
+production_login_page() {
+    local tmp status
+    tmp=$(mktemp -d)
+    APP_ENV=prod APP_DEBUG=0 APP_SECRET=gate-check DATABASE_URL="sqlite:///$tmp/gate.db" APP_CACHE_DIR="$tmp/cache" APP_LOG_DIR="$tmp/log" \
+        "$PHP" bin/console doctrine:migrations:migrate --no-interaction --quiet \
+        && APP_ENV=prod APP_DEBUG=0 APP_SECRET=gate-check DATABASE_URL="sqlite:///$tmp/gate.db" APP_CACHE_DIR="$tmp/cache" APP_LOG_DIR="$tmp/log" \
+        "$PHP" bin/health-check.php
+    status=$?
+    rm -rf "$tmp"
+    return $status
+}
+check "production login page" production_login_page
+
+step "Smoke test (built-in server, production mode)"
+check "smoke" "$PHP" tests/smoke.php
 
 echo
 if ((${#failed[@]})); then

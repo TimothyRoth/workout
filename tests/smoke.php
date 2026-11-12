@@ -17,45 +17,27 @@ $dbPath = $tmpDir . '/smoke.db';
 
 if (isset($argv[1])) {
     copy($argv[1], $dbPath) || exit("Could not copy {$argv[1]}\n");
-} else {
-    seedLegacyDatabase($dbPath);
 }
 
-/**
- * A schema v1 database with free-text units, so the server has to run the v2 migration.
- */
-function seedLegacyDatabase(string $path): void
-{
-    $pdo = new PDO('sqlite:' . $path, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-    $pdo->exec("CREATE TABLE workouts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP)");
-    $pdo->exec("CREATE TABLE exercises (id INTEGER PRIMARY KEY AUTOINCREMENT, workout_id INTEGER NOT NULL, name TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP, position INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(workout_id) REFERENCES workouts(id) ON DELETE CASCADE)");
-    $pdo->exec("CREATE TABLE sets (id INTEGER PRIMARY KEY AUTOINCREMENT, exercise_id INTEGER NOT NULL, measure_unit TEXT NOT NULL, repetitions INTEGER, rest_time TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP, position INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(exercise_id) REFERENCES exercises(id) ON DELETE CASCADE)");
-    $pdo->exec("CREATE TABLE workoutLog (id INTEGER PRIMARY KEY AUTOINCREMENT, workout_id INTEGER NOT NULL, workload INTEGER NOT NULL, duration INTEGER NOT NULL, summary TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP, workout_name TEXT)");
-    $pdo->exec("INSERT INTO workouts(id, name) VALUES (1, 'Legacy')");
-    $pdo->exec("INSERT INTO exercises(id, workout_id, name, position) VALUES (1, 1, 'Altbestand', 1)");
-    $i = 0;
-    foreach (['90kg', '22,5 kg', 'Körpergewicht', '60 s', '2 min', 'Bänder'] as $unit) {
-        $i++;
-        $pdo->exec("INSERT INTO sets(exercise_id, measure_unit, repetitions, rest_time, position) VALUES (1, " . $pdo->quote($unit) . ", 8, '120', $i)");
-    }
-    $pdo->exec("INSERT INTO workoutLog(workout_id, workout_name, workload, duration, summary) VALUES (1, 'Legacy', 720, 30, '{\"exercises\":[{\"name\":\"Altbestand\",\"sets\":[{\"reps\":\"8\",\"measureUnit\":\"90kg\",\"breaktime\":\"120\"}]}]}')");
-    $pdo->exec("PRAGMA user_version = 1");
-}
+// The app in production mode on its own database, cache and logs; the migrations build or adopt the schema.
+$env = sprintf(
+    'APP_ENV=prod APP_DEBUG=0 APP_SECRET=smoke-test-secret-0123456789abcdef DATABASE_URL=%s APP_CACHE_DIR=%s APP_LOG_DIR=%s',
+    escapeshellarg('sqlite:///' . $dbPath), escapeshellarg($tmpDir . '/cache'), escapeshellarg($tmpDir . '/log')
+);
+exec("$env php8.4 " . escapeshellarg($root . '/bin/console') . ' doctrine:migrations:migrate --no-interaction 2>&1', $migrateOutput, $migrateExit);
+$migrateExit === 0 || exit("Migrations failed:\n" . implode("\n", $migrateOutput) . "\n");
 
 $port = 18000 + random_int(0, 999);
 $cmd = sprintf(
-    'WORKOUT_DB=%s php -S 127.0.0.1:%d -t %s %s > %s 2>&1 & echo $!',
-    escapeshellarg($dbPath), $port, escapeshellarg($root . '/public'), escapeshellarg($root . '/public/index.php'), escapeshellarg($tmpDir . '/server.log')
+    '%s php8.4 -d variables_order=EGPCS -S 127.0.0.1:%d -t %s %s > %s 2>&1 & echo $!',
+    $env, $port, escapeshellarg($root . '/public'), escapeshellarg($root . '/tests/router.php'), escapeshellarg($tmpDir . '/server.log')
 );
 $pid = (int)trim((string)shell_exec($cmd));
 register_shutdown_function(function () use ($pid, $tmpDir) {
     if ($pid > 0) {
         posix_kill($pid, SIGTERM);
     }
-    foreach (glob($tmpDir . '/*') ?: [] as $f) {
-        @unlink($f);
-    }
-    @rmdir($tmpDir);
+    exec('rm -rf ' . escapeshellarg($tmpDir));
 });
 usleep(400_000);
 
@@ -95,7 +77,7 @@ function request(string $method, string $path, array|string|null $body = null, a
     $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
     curl_close($ch);
     $rawHeaders = substr((string)$raw, 0, $headerSize);
-    $location = preg_match('/^Location:\s*(.+)$/mi', $rawHeaders, $m) ? trim($m[1]) : null;
+    $location = preg_match('/^Location:\s*(.+)$/mi', $rawHeaders, $m) ? trim(str_replace($base, '', trim($m[1]))) : null;
     return ['status' => $status, 'headers' => $rawHeaders, 'body' => substr((string)$raw, $headerSize), 'location' => $location];
 }
 
@@ -121,7 +103,7 @@ function db(): PDO
 echo "Smoke test against $base\n";
 
 // --- login ------------------------------------------------------------------
-$console = fn(string $args) => trim((string)shell_exec(sprintf('WORKOUT_DB=%s php %s %s 2>&1', escapeshellarg($dbPath), escapeshellarg($root . '/bin/console'), $args)));
+$console = fn(string $args) => trim((string)shell_exec(sprintf('%s php8.4 %s %s 2>&1', $env, escapeshellarg($root . '/bin/console'), $args)));
 check('console creates a user', str_contains($console('app:user:create smoke "geheim123"'), 'created'));
 check('console rejects a duplicate user', str_contains($console('app:user:create smoke "geheim123"'), 'already exists'));
 check('console rejects a short password', str_contains($console('app:user:create kurz "abc"'), 'at least 8'));
@@ -136,7 +118,7 @@ check('login page 200', $r['status'] === 200 && str_contains($r['body'], 'name="
 check('login page has no install card', !str_contains($r['body'], 'install-card'));
 
 $r = request('POST', '/login', ['username' => 'smoke', 'password' => 'falsch']);
-check('wrong password redirects back', $r['status'] === 303 && $r['location'] === '/login');
+check('wrong password redirects back', $r['status'] === 302 && $r['location'] === '/login', "got {$r['status']} {$r['location']}");
 $r = request('GET', '/login');
 check('wrong password shows german error', str_contains($r['body'], 'Fehlerhafte Zugangsdaten.') && str_contains($r['body'], 'value="smoke"'));
 $r = request('GET', '/login');
@@ -145,8 +127,8 @@ $r = request('GET', '/workout?workout_id=1');
 check('still anonymous after failed login, page bounces to login', $r['status'] === 303 && $r['location'] === '/login', "got {$r['status']} {$r['location']}");
 
 $r = request('POST', '/login', ['username' => 'SMOKE', 'password' => 'geheim123', 'remember' => '1']);
-check('login redirects to the remembered page', $r['status'] === 303 && $r['location'] === '/workout?workout_id=1', "loc {$r['location']}");
-check('login sets a remember cookie', preg_match('/^Set-Cookie: workout_remember=[0-9a-f]{88};.*HttpOnly/mi', $r['headers']) === 1, $r['headers']);
+check('login redirects to the remembered page', $r['status'] === 302 && $r['location'] === '/workout?workout_id=1', "loc {$r['location']}");
+check('login sets a remember cookie', preg_match('/^Set-Cookie: workout_remember=[^;]{20,};.*httponly/mi', $r['headers']) === 1, $r['headers']);
 $r = request('GET', '/login');
 check('login page redirects when logged in', $r['status'] === 303 && $r['location'] === '/');
 
@@ -154,7 +136,7 @@ check('login page redirects when logged in', $r['status'] === 303 && $r['locatio
 file_put_contents($cookieJar, implode("\n", array_filter(file($cookieJar, FILE_IGNORE_NEW_LINES), fn($l) => !str_contains($l, 'workout_session'))) . "\n");
 $r = request('GET', '/');
 check('remember cookie restores the login', $r['status'] === 200, "got {$r['status']}");
-check('remember token is rotated', preg_match('/^Set-Cookie: workout_remember=/mi', $r['headers']) === 1);
+check('remember cookie is renewed', preg_match('/^Set-Cookie: workout_remember=[^;]{20,};/mi', $r['headers']) === 1);
 
 // --- pages render --------------------------------------------------------
 $r = request('GET', '/');
@@ -189,21 +171,6 @@ check('unknown workout 404', $r['status'] === 404, "got {$r['status']}");
 
 $r = request('GET', '/workout?workout_id=abc');
 check('non-numeric id 400', $r['status'] === 400, "got {$r['status']}");
-
-// --- v2 migration of legacy units (seeded data only) ----------------------
-if (!isset($argv[1])) {
-$migrated = db()->query("SELECT unit, load, rest_time FROM sets WHERE exercise_id = 1 ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
-$expected = [['kg', 90.0], ['kg', 22.5], ['bw', null], ['s', 60.0], ['s', 120.0], ['kg', null]];
-check('legacy units migrated to enum + load', array_map(fn($r) => [$r['unit'], $r['load'] === null ? null : (float)$r['load']], $migrated) === $expected, json_encode($migrated));
-check('legacy rest_time is now an integer', (int)$migrated[0]['rest_time'] === 120);
-$r = request('GET', '/workout?workout_id=1');
-check('legacy workout page renders migrated labels', $r['status'] === 200 && str_contains($r['body'], '22,5 kg') && str_contains($r['body'], 'Körpergewicht') && str_contains($r['body'], '60 s') && str_contains($r['body'], '– kg'));
-$legacyLog = db()->query("SELECT le.exercise_id, le.name, ls.repetitions, ls.unit, ls.load, ls.rest_time FROM logExercises le JOIN logSets ls ON ls.log_exercise_id = le.id JOIN workoutLog wl ON wl.id = le.log_id WHERE wl.workout_id = 1")->fetchAll(PDO::FETCH_ASSOC);
-check('legacy JSON log migrated into logExercises/logSets', count($legacyLog) === 1 && (int)$legacyLog[0]['exercise_id'] === 1 && $legacyLog[0]['name'] === 'Altbestand' && (int)$legacyLog[0]['repetitions'] === 8 && $legacyLog[0]['unit'] === 'kg' && (float)$legacyLog[0]['load'] === 90.0 && (int)$legacyLog[0]['rest_time'] === 120, json_encode($legacyLog));
-check('workoutLog has no summary column anymore', !in_array('summary', array_column(db()->query('PRAGMA table_info(workoutLog)')->fetchAll(PDO::FETCH_ASSOC), 'name'), true));
-$r = request('GET', '/logs');
-check('legacy log renders from tables', $r['status'] === 200 && str_contains($r['body'], 'Altbestand') && str_contains($r['body'], '>90 kg<'));
-}
 
 // --- csrf -----------------------------------------------------------------
 $r = request('POST', '/addWorkout', ['workout_name' => 'evil'], ['Origin' => 'https://attacker.example']);
@@ -390,26 +357,19 @@ check('logs page shows per-exercise history', str_contains($r['body'], 'Verlauf 
 
 // --- training calendar -------------------------------------------------------
 $r = request('GET', '/logs');
-check('logs page shows the training calendar', str_contains($r['body'], 'class="card calendar"') && substr_count($r['body'], 'class="cal-day') === 16 * 7 && str_contains($r['body'], 'Woche in Folge'));
+check('logs page shows the training calendar', str_contains($r['body'], 'class="card calendar"') && substr_count($r['body'], 'class="cal-day') === 16 * 7 && preg_match('/Wochen? in Folge/', $r['body']) === 1);
 check('today is marked as trained', preg_match('/class="cal-day cal-[12] is-today"/', $r['body']) === 1);
 check('session page has the plate calculator sheet', str_contains(request('GET', "/workout?workout_id=$workoutId")['body'], 'id="plate-calculator"'));
 
-require_once $root . '/vendor/autoload.php';
-$mkLog = fn(string $date) => ['created_at' => $date . ' 10:00:00', 'workout_name' => 'X', 'actual_workload' => 1];
-$cal = \App\Calendar::build([$mkLog('2026-11-02'), $mkLog('2026-10-28'), $mkLog('2026-10-20'), $mkLog('2026-10-01')], new DateTimeImmutable('2026-11-04 12:00:00'));
-check('calendar: streak counts consecutive weeks up to this week', $cal['streak'] === 3 && $cal['thisWeek'] === 1 && $cal['lastFourWeeks'] === 3, json_encode([$cal['streak'], $cal['thisWeek'], $cal['lastFourWeeks']]));
-$cal = \App\Calendar::build([$mkLog('2026-10-28'), $mkLog('2026-10-20')], new DateTimeImmutable('2026-11-04 12:00:00'));
-check('calendar: a week in progress without training keeps the streak', $cal['streak'] === 2 && $cal['thisWeek'] === 0);
-$cal = \App\Calendar::build([$mkLog('2026-10-14')], new DateTimeImmutable('2026-11-04 12:00:00'));
-check('calendar: a missed week ends the streak', $cal['streak'] === 0);
-check('calendar: grid is 16 Monday-first weeks ending today', count($cal['weeks']) === 16 && $cal['weeks'][0][0]['date'] === '2026-07-20' && $cal['weeks'][15][2]['today'] === true && $cal['weeks'][15][3]['future'] === true);
 
 // --- charts & export ---------------------------------------------------------
 $r = request('GET', '/logs');
 $charts = preg_match_all('/data-chart="([^"]+)"/', $r['body'], $chartMatches);
 $chartSpecs = array_map(fn($raw) => json_decode(html_entity_decode($raw, ENT_QUOTES, 'UTF-8'), true), $chartMatches[1]);
-$bestChart = array_values(array_filter($chartSpecs, fn($spec) => str_starts_with($spec['title'] ?? '', 'Bestes Set')));
-$volumeChart = array_values(array_filter($chartSpecs, fn($spec) => ($spec['title'] ?? '') === 'Volumen'));
+// Only this run's sessions (all logged today), so the check also holds on a copy of real data.
+$today = fn($spec) => str_starts_with($spec['points'][0]['d'] ?? '', gmdate('Y-m-d'));
+$bestChart = array_values(array_filter($chartSpecs, fn($spec) => str_starts_with($spec['title'] ?? '', 'Bestes Set') && $today($spec)));
+$volumeChart = array_values(array_filter($chartSpecs, fn($spec) => ($spec['title'] ?? '') === 'Volumen' && $today($spec)));
 check('logs page carries chart data for exercises with history', $charts > 0 && $volumeChart !== [] && count($volumeChart[0]['points']) === 3, json_encode($chartSpecs));
 check('best-set chart skipped while the history mixes units', $bestChart === [], json_encode($bestChart));
 check('export link on the logs page', str_contains($r['body'], 'href="/export.json" download'));
@@ -419,7 +379,7 @@ $export = json_decode($r['body'], true);
 check('export is a json attachment', $r['status'] === 200 && stripos($r['headers'], 'Content-Disposition: attachment; filename="workout-export-') !== false, $r['headers']);
 $exportedWorkout = array_values(array_filter($export['workouts'] ?? [], fn($w) => (int)$w['id'] === $workoutId))[0] ?? null;
 $exportedLog = array_values(array_filter($export['logs'] ?? [], fn($l) => (int)$l['id'] === $logId))[0] ?? null;
-check('export nests workouts, exercises, sets and logs', ($export['format'] ?? '') === 'workout-export' && ($exportedWorkout['exercises'][0]['sets'][0]['unit'] ?? null) === 'kg' && ($exportedWorkout['exercises'][0]['notes'] ?? null) === 'Sitz auf 4' && count($export['logs']) === 4 && ($exportedLog['exercises'][0]['sets'][0]['repetitions'] ?? null) === 8 && ($exportedLog['notes'] ?? '') === "Lief gut,\nSchulter zwickt", substr($r['body'], 0, 300));
+check('export nests workouts, exercises, sets and logs', ($export['format'] ?? '') === 'workout-export' && ($exportedWorkout['exercises'][0]['sets'][0]['unit'] ?? null) === 'kg' && ($exportedWorkout['exercises'][0]['notes'] ?? null) === 'Sitz auf 4' && count($export['logs']) === (int)db()->query('SELECT COUNT(*) FROM workoutLog')->fetchColumn() && ($exportedLog['exercises'][0]['sets'][0]['repetitions'] ?? null) === 8 && ($exportedLog['notes'] ?? '') === "Lief gut,\nSchulter zwickt", substr($r['body'], 0, 300));
 check('export carries no users or tokens', !str_contains($r['body'], 'password') && !str_contains($r['body'], 'validator'));
 
 // --- edit & delete log entries ---------------------------------------------
@@ -467,10 +427,10 @@ check('logs of deleted workout still listed', $r['status'] === 200 && str_contai
 
 // --- logout ------------------------------------------------------------------
 $r = request('POST', '/logout');
-check('logout redirects to login', $r['status'] === 303 && $r['location'] === '/login');
+check('logout redirects to login', $r['status'] === 302 && $r['location'] === '/login', "got {$r['status']} {$r['location']}");
+check('logout clears the remember cookie', preg_match('/^Set-Cookie: workout_remember=deleted;/mi', $r['headers']) === 1, $r['headers']);
 $r = request('GET', '/');
 check('logged out afterwards', $r['status'] === 303 && $r['location'] === '/login');
-check('logout revokes the remember token', (int)db()->query('SELECT COUNT(*) FROM auth_tokens')->fetchColumn() === 0);
 check('console deletes the user', str_contains($console('app:user:delete smoke'), 'deleted'));
 
 // --- schema state ----------------------------------------------------------

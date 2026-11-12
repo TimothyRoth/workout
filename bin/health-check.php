@@ -1,26 +1,21 @@
 <?php
 
-// Exits 0 when the login page renders, 1 otherwise. Run by bin/update.sh after every deployment.
-// Opens the database like a request would, so it also applies pending schema migrations.
+// Exits 0 when the login page renders in the current environment, 1 otherwise.
+// Run by bin/update.sh after every deployment.
 
-declare(strict_types=1);
+use App\Kernel;
+use Symfony\Component\Dotenv\Dotenv;
+use Symfony\Component\HttpFoundation\Request;
 
-require dirname(__DIR__) . '/vendor/autoload.php';
-require dirname(__DIR__) . '/config.php';
+require dirname(__DIR__).'/vendor/autoload.php';
 
-$_SERVER['REQUEST_METHOD'] = 'GET';
-$_SERVER['REQUEST_URI'] = '/login';
-$_SERVER['HTTP_HOST'] ??= 'localhost';
+(new Dotenv())->bootEnv(dirname(__DIR__).'/.env');
 
-ob_start();
-App\Application::run();
-$html = (string)ob_get_clean();
+$kernel = new Kernel($_SERVER['APP_ENV'], (bool) $_SERVER['APP_DEBUG']);
+$response = $kernel->handle(Request::create('/login'));
 
-// On the CLI the status stays unset (false) unless the app sets one, e.g. 500 on an error.
-$status = http_response_code() ?: 200;
-
-if ($status !== 200 || !str_contains($html, 'name="password"')) {
-    fwrite(STDERR, sprintf("The login page answers with HTTP %d. See the PHP error log for the reason.\n", $status));
+if (200 !== $response->getStatusCode() || !str_contains((string) $response->getContent(), 'name="password"')) {
+    fwrite(STDERR, sprintf("The login page answers with HTTP %d. See var/log/ for the reason.\n", $response->getStatusCode()));
     exit(1);
 }
 
