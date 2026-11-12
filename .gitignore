@@ -3,3 +3,4 @@ workout.db
 workout.db-wal
 workout.db-shm
 /var/
+/.claude/
