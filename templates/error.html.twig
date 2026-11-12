@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+{% set title = 'Fehler ' ~ status %}
+
+{% block body %}
+<header class="topbar">
+    <a class="icon-btn" href="/" aria-label="Zur Startseite">{{ icon('back') }}</a>
+    <h1>Fehler {{ status }}</h1>
+</header>
+<div class="card error-card">
+    <p>{{ message }}</p>
+    <a class="btn btn-ghost btn-block" href="/">Zur Startseite</a>
+</div>
+{% endblock %}

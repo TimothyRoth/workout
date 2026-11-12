@@ -2,11 +2,11 @@
 framework:
     secret: '%env(APP_SECRET)%'
 
-    # Note that the session will be started ONLY if you read or write from it.
-    session: true
-
-    #esi: true
-    #fragments: true
+    # PHP's own session files (php.ini save_path), so a deploy that clears var/cache logs nobody out.
+    session:
+        name: workout_session
+        cookie_secure: auto
+        cookie_samesite: lax
 
 when@test:
     framework:

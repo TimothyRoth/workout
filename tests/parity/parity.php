@@ -111,6 +111,12 @@ function req(string $label, string $method, string $path, array|string|null $bod
     foreach (['Location', 'Content-Type', 'Cache-Control', 'Content-Disposition', 'X-Content-Type-Options', 'Referrer-Policy', 'X-Frame-Options', 'Service-Worker-Allowed'] as $name) {
         if (preg_match('/^' . $name . ':\s*(.+)$/mi', $rawHeaders, $h)) {
             $value = $name === 'Location' ? $location : trim($h[1]);
+            if ($name === 'Cache-Control') {
+                // Symfony adds "private" and orders the directives differently; neither matters without a shared cache.
+                $directives = array_diff(array_map('trim', explode(',', strtolower($value))), ['private']);
+                sort($directives);
+                $value = implode(', ', $directives);
+            }
             $report .= strtolower($name) . ': ' . mask((string)$value) . "\n";
         }
     }
