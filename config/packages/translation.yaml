@@ -1,0 +1,6 @@
+framework:
+    # German login error messages come from Symfony's own catalogue; all other UI text is hardcoded German.
+    default_locale: de
+    translator:
+        default_path: '%kernel.project_dir%/translations'
+        providers:

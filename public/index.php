@@ -1,12 +1,9 @@
 <?php
 
-// Built-in dev server (php -S ... public/index.php): existing files are served as they are,
-// everything else – including /sw.js, which only exists as a route – comes through here.
-if (PHP_SAPI === 'cli-server' && is_file(__DIR__ . parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH))) {
-    return false;
-}
+use App\Kernel;
 
-require __DIR__ . '/../vendor/autoload.php';
-require __DIR__ . '/../config.php';
+require_once dirname(__DIR__).'/vendor/autoload_runtime.php';
 
-App\Application::run();
+return static function (array $context) {
+    return new Kernel($context['APP_ENV'], (bool) $context['APP_DEBUG']);
+};

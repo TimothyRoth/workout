@@ -1,0 +1,11 @@
+# DBAL only: the repositories in src/Repository keep their hand-written SQL, there is no ORM.
+doctrine:
+    dbal:
+        url: '%env(resolve:DATABASE_URL)%'
+        profiling_collect_backtrace: '%kernel.debug%'
+
+when@test:
+    doctrine:
+        dbal:
+            # Hard-pinned so a production DATABASE_URL in the environment can never be reached from tests.
+            url: 'sqlite:///%kernel.project_dir%/var/workout_test.db'

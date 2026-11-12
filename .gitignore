@@ -1,6 +1,22 @@
-/vendor/
-workout.db
-workout.db-wal
-workout.db-shm
+###> symfony/framework-bundle ###
+/.env.local
+/.env.local.php
+/.env.*.local
+/config/secrets/prod/prod.decrypt.private.php
+/public/bundles/
 /var/
+/vendor/
+###< symfony/framework-bundle ###
+
+###> phpunit/phpunit ###
+/phpunit.xml
+/.phpunit.cache/
+###< phpunit/phpunit ###
+
+# The old app kept its database in the project root (moved to var/ by bin/update.sh)
+/workout.db
+/workout.db-wal
+/workout.db-shm
+
+# Local working files for Claude Code (not shared)
 /.claude/
