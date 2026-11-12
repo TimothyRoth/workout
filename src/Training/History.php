@@ -1,11 +1,15 @@
 <?php
 
-namespace App;
+declare(strict_types=1);
+
+namespace App\Training;
+
+use App\Enum\Unit;
 
 /**
- * Pure helpers over the nested log list that Database::getLogs() returns.
+ * Pure helpers over the nested log list that LogRepository::findAll() returns.
  */
-class History
+final class History
 {
     /**
      * Group every logged exercise by identity (exercise id, or workout + name
