@@ -164,8 +164,12 @@ Rollback to the pre-Symfony app (the schema is the same, no data conversion):
 ```bash
 git -c safe.directory="$PWD" checkout -B main c2f74c1
 php8.4 -r '$d = new PDO("sqlite:var/workout_prod.db"); $d->exec("VACUUM INTO \"workout.db\"");'
-bin/update.sh php8.4    # the old script: chown, backup, composer install, health check
+mv var/workout_prod.db var/backup/workout_prod.db.rolled-back-$(date +%Y%m%d-%H%M%S); rm -f var/workout_prod.db-wal var/workout_prod.db-shm
+rm -rf vendor var/cache   # Symfony's composer plugin would stop the old composer install
+bin/update.sh php8.4      # the old script: chown, backup, composer install, health check
 ```
+
+Deploying the Symfony version again later moves `workout.db` to `var/` again, as on the first deploy.
 
 Never open the database from the CLI as your own user: SQLite creates `-wal`/`-shm` files owned
 by you that PHP-FPM cannot write, and every page returns 500 until they are removed. Use

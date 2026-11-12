@@ -61,14 +61,19 @@ adopt_root_database() {
         exit 1
     fi
 
+    local parked=var/backup/pre-symfony
+    [[ -e $parked ]] && parked+="-$(date +%Y%m%d-%H%M%S)"
+
     copy_database workout.db "$DATABASE.new"
     rm -f "$DATABASE" "$DATABASE-wal" "$DATABASE-shm"
     as_app_user mv "$DATABASE.new" "$DATABASE"
-    as_app_user mkdir -p var/backup/pre-symfony
-    for file in workout.db workout.db-wal workout.db-shm workout.db.bak-*; do
-        [[ -e $file ]] && mv "$file" var/backup/pre-symfony/
+    as_app_user mkdir -p "$parked"
+    for file in workout.db workout.db-wal workout.db-shm; do
+        if [[ -e $file ]]; then
+            mv "$file" "$parked/"
+        fi
     done
-    echo "Moved workout.db to $DATABASE (the original is in var/backup/pre-symfony/)."
+    echo "Moved workout.db to $DATABASE (the original is in $parked/)."
 }
 
 # The value committed in .env does not count: what is in git is no secret.
